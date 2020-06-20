@@ -1,8 +1,10 @@
+import datetime
 import logging
 import typing
 
 import discord
 from discord.ext import commands
+from tinydb import TinyDB, Query
 
 import config
 
@@ -10,6 +12,8 @@ LOG_FORMAT = '[%(asctime)s] [%(levelname)s]: %(message)s'
 logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 
 bot = commands.Bot(command_prefix=commands.when_mentioned, case_insensitive=True)
+db = TinyDB('db.json')
+Servers = Query()
 
 class RoleRequest(commands.Cog):
     def __init__(self, bot):
@@ -24,7 +28,10 @@ class RoleRequest(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
-        await ctx.send(':x: ' + str(error))
+        if isinstance(error, commands.errors.CommandInvokeError):
+            logging.warning(error)
+            await ctx.send(f':warning: Command raised an exception. Time occurred: `{datetime.datetime.now()}`')
+        else: await ctx.send(f':x: {str(error)}')
 
 
     @commands.group(name='list', invoke_without_command=True, case_insensitive=True)
