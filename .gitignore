@@ -1,3 +1,5 @@
+config.py
+
 # Virtualenv and workspace
 bot/
 .vscode/
