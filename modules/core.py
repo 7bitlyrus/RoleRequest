@@ -33,7 +33,8 @@ def guild_in_db():
                 db.insert({'id': ctx.guild.id, 'requestChannel': None, 'roles': []})
                 logging.info(f'[Bot] Guild initalized to database: {ctx.guild} ({ctx.guild.id})')
             return True
-        except:
+        except Exception as e:
+            logging.warn(e)
             return False
     return commands.check(predicate)
 

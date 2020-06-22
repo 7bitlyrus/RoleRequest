@@ -30,8 +30,8 @@ class Core(commands.Cog):
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.errors.CommandInvokeError):
-            logging.warning(error)
             await ctx.send(f':warning: Command raised an exception. Time occurred: `{datetime.datetime.now()}`')
+            raise error
         else: await ctx.send(f':x: {str(error)}')
 
 bot.add_cog(Core(bot))
