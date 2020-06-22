@@ -12,11 +12,6 @@ logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 
 bot = commands.Bot(command_prefix=commands.when_mentioned, case_insensitive=True)
 db = TinyDB('db.json')
- 
-def list_append(key, element):
-    def transform(doc):
-        doc[key].append(element)
-    return transform
 
 class Core(commands.Cog):
     def __init__(self, bot):
