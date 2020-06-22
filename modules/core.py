@@ -137,10 +137,12 @@ class RoleRequest(commands.Cog):
            raise commands.errors.BadArgument(f'{role.name} is already a requestable role.') 
 
         if not type.lower() in types:
-            commands.errors.BadArgument(f'{type} is not a valid type.') 
+            raise commands.errors.BadArgument(f'{type} is not a valid type.') 
+        else:
+            resolved_type = types[type.lower()]}
 
-        self.db.update(list_append('roles', {'id': role.id, 'type': types[type]}), Servers.id == ctx.guild.id)
-        await ctx.send(f':white_check_mark: {role.name} added as a requestable {types[type]} role.')
+        self.db.update(list_append('roles', {'id': role.id, 'type': resolved_type]}), Servers.id == ctx.guild.id)
+        await ctx.send(f':white_check_mark: {role.name} added as a requestable {resolved_type} role.')
          
 
     @_role.command(name='remove')
