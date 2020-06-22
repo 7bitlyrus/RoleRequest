@@ -7,6 +7,7 @@ from tinydb import Query
 
 Servers = Query()
 
+# Database Operations
 def list_append(key, element):
     def transform(doc):
         doc[key].append(element)
@@ -17,6 +18,12 @@ def list_remove(key, filterFunc):
         doc[key] = list(filter(lambda x: not filterFunc(x), doc[key]))
     return transform
 
+def list_update(key, filterFunc, new):
+    def transform(doc):
+        doc[key] = list(map(lambda x: new if filterFunc(x) else x, doc[key]))
+    return transform
+
+# Checks
 def guild_in_db():
     async def predicate(ctx):
         try:
@@ -98,7 +105,7 @@ class RoleRequest(commands.Cog):
         # check if can read channel
         return await ctx.send('REQUEST DENY') # TODO
 
-
+    
     @commands.group(name='roles', invoke_without_command=True, case_insensitive=True, aliases=['role'])
     @commands.guild_only()
     async def _role(self, ctx):
@@ -134,7 +141,6 @@ class RoleRequest(commands.Cog):
         self.db.update(list_append('roles', {'id': role.id, 'type': types[type]}), Servers.id == ctx.guild.id)
         await ctx.send(f':white_check_mark: {role.name} added as a requestable {types[type]} role.')
          
-        # return await ctx.send('ROLE ADD') # TODO
 
     @_role.command(name='remove')
     @commands.has_guild_permissions(manage_roles=True)
@@ -147,19 +153,31 @@ class RoleRequest(commands.Cog):
            raise commands.errors.BadArgument(f'{role.name} is not a requestable role.') 
 
         self.db.update(list_remove('roles', lambda x: x['id'] == role.id), Servers.id == ctx.guild.id)
-        await ctx.send(f':white_check_mark: {role.name} remove as a requestable role.')
+        await ctx.send(f':white_check_mark: {role.name} removed as a requestable role.')
 
-    @_role.command(name='restict')
+    @_role.command(name='restrict')
     @commands.has_guild_permissions(manage_roles=True)
     async def _role_restict(self, ctx, role: discord.Role):
         '''Makes a public role restricted'''
-        return await ctx.send('ROLE RESTRICT') # TODO
+        await self._role_update_role(ctx, role, 'restricted')
 
     @_role.command(name='public', aliases=['unrestrict'])
     @commands.has_guild_permissions(manage_roles=True)
     async def _role_public(self, ctx, role: discord.Role):
         '''Makes a restricted role public'''
-        return await ctx.send('ROLE PUBLIC') # TODO
+        await self._role_update_role(ctx, role, 'public')
+
+    async def _role_update_role(self, ctx, role: discord.Role, type):
+        Roles = Query()
+
+        if not self.bot.db.contains((Servers.id == ctx.guild.id) & (Servers.roles.any(Roles.id == role.id))):
+           raise commands.errors.BadArgument(f'{role.name} is not a requestable role.') 
+
+        if self.bot.db.contains((Servers.id == ctx.guild.id) & (Servers.roles.any(Roles.id == role.id)) & (Servers.roles.any(Roles.type == type))):
+           raise commands.errors.BadArgument(f'{role.name} is already a {type} requestable role.') 
+
+        self.db.update(list_update('roles', lambda x: x['id'] == role.id, {'id': role.id, 'type': type}), Servers.id == ctx.guild.id)
+        await ctx.send(f':white_check_mark: {role.name} is now a {type} requestable role.')
 
 
 def setup(bot):
