@@ -18,13 +18,12 @@ Servers = Query()
 class RoleRequest(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.READY = False
-
 
     @commands.Cog.listener()
     async def on_ready(self):
         logging.info('[Bot] Ready')
-        if not self.READY: self.READY = True
+        for guild in self.bot.guilds:
+            await self.on_guild_join(guild)
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
@@ -33,6 +32,14 @@ class RoleRequest(commands.Cog):
             await ctx.send(f':warning: Command raised an exception. Time occurred: `{datetime.datetime.now()}`')
         else: await ctx.send(f':x: {str(error)}')
 
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild): # Also called on startup by on_ready()
+        logging.info(f'[Bot] Joined guild: {guild} ({guild.id})')
+
+        if not db.contains(Servers.id == guild.id):
+            db.insert({'id': guild.id, 'requestChannel': None, 'roles': []})
+            logging.info(f'[Bot] Guild initalized to database: {guild}')
+            return
 
     @commands.group(name='list', invoke_without_command=True, case_insensitive=True)
     @commands.guild_only()
