@@ -5,38 +5,9 @@ import discord
 from discord.ext import commands
 from tinydb import Query
 
+import utils
+
 Servers = Query()
-
-# Database Operations
-def list_append(key, element):
-    def transform(doc):
-        doc[key].append(element)
-    return transform
-
-def list_remove(key, filterFunc):
-    def transform(doc):
-        doc[key] = list(filter(lambda x: not filterFunc(x), doc[key]))
-    return transform
-
-def list_update(key, filterFunc, new):
-    def transform(doc):
-        doc[key] = list(map(lambda x: new if filterFunc(x) else x, doc[key]))
-    return transform
-
-# Checks
-def guild_in_db():
-    async def predicate(ctx):
-        try:
-            db = ctx.bot.db
-
-            if not db.contains(Servers.id == ctx.guild.id):
-                db.insert({'id': ctx.guild.id, 'requestChannel': None, 'roles': []})
-                logging.info(f'[Bot] Guild initalized to database: {ctx.guild} ({ctx.guild.id})')
-            return True
-        except Exception as e:
-            logging.warn(e)
-            return False
-    return commands.check(predicate)
 
 class RoleRequest(commands.Cog):
     def __init__(self, bot):
@@ -54,11 +25,6 @@ class RoleRequest(commands.Cog):
     async def _list_all(self, ctx):
         '''Lists all roles in the server'''
         return await ctx.send('LIST ALL') # TODO
-
-    @_list.command(name='colors', aliases=['color', 'colour', 'colours'])
-    async def _list_colors(self, ctx):
-        '''Shows an image of requestable colored roles'''
-        return await ctx.send('LIST COLORS') # TODO
 
 
     @commands.command(name='join')
@@ -78,35 +44,6 @@ class RoleRequest(commands.Cog):
         return await ctx.send('LEAVE') # TODO
 
 
-    @commands.group(name='request', invoke_without_command=True, case_insensitive=True)
-    @commands.guild_only()
-    async def _request(self, ctx):
-        '''
-        Manages restricted role requests
-        
-        To make or cancel your own role request, use the 'join' or 'leave' commands.
-        '''
-        return await ctx.send_help('request')
-
-    @_request.command(name='channel')
-    @commands.has_guild_permissions(manage_roles=True)
-    async def _request_channel(self, ctx, channel: typing.Optional[discord.TextChannel]):
-        '''Sets the channel that requests will be posted in'''
-        return await ctx.send('REQUEST CHANNEL') # TODO
-
-    @_request.command(name='approve')
-    async def _request_approve(self, ctx, id: str):
-        '''Approves a restricted role requests'''
-        # check if can read channel
-        return await ctx.send('REQUEST APPROVE') # TODO
-
-    @_request.command(name='deny')
-    async def _request_deny(self, ctx, id: str):
-        '''Denies a restricted role requests'''
-        # check if can read channel
-        return await ctx.send('REQUEST DENY') # TODO
-
-    
     @commands.group(name='roles', invoke_without_command=True, case_insensitive=True, aliases=['role'])
     @commands.guild_only()
     async def _role(self, ctx):
@@ -119,7 +56,7 @@ class RoleRequest(commands.Cog):
 
     @_role.command(name='add', usage='<role> [public|restricted]')
     @commands.has_guild_permissions(manage_roles=True)
-    @guild_in_db()
+    @utils.guild_in_db()
     async def _role_add(self, ctx, role: discord.Role, type: typing.Optional[str] = 'public'):
         '''
         Adds a role to the requestable roles
@@ -139,15 +76,15 @@ class RoleRequest(commands.Cog):
         if not type.lower() in types:
             raise commands.errors.BadArgument(f'{type} is not a valid type.') 
         else:
-            resolved_type = types[type.lower()]}
+            resolved_type = types[type.lower()]
 
-        self.db.update(list_append('roles', {'id': role.id, 'type': resolved_type]}), Servers.id == ctx.guild.id)
+        self.db.update(utils.list_append('roles', {'id': role.id, 'type': resolved_type}), Servers.id == ctx.guild.id)
         await ctx.send(f':white_check_mark: {role.name} added as a requestable {resolved_type} role.')
          
 
     @_role.command(name='remove')
     @commands.has_guild_permissions(manage_roles=True)
-    @guild_in_db()
+    @utils.guild_in_db()
     async def _role_remove(self, ctx, role: discord.Role):
         '''Removes role from the requestable roles'''
         Roles = Query()
@@ -155,7 +92,7 @@ class RoleRequest(commands.Cog):
         if not self.bot.db.contains((Servers.id == ctx.guild.id) & (Servers.roles.any(Roles.id == role.id))):
            raise commands.errors.BadArgument(f'{role.name} is not a requestable role.') 
 
-        self.db.update(list_remove('roles', lambda x: x['id'] == role.id), Servers.id == ctx.guild.id)
+        self.db.update(utils.list_remove('roles', lambda x: x['id'] == role.id), Servers.id == ctx.guild.id)
         await ctx.send(f':white_check_mark: {role.name} removed as a requestable role.')
 
     @_role.command(name='restrict')
@@ -176,10 +113,10 @@ class RoleRequest(commands.Cog):
         if not self.bot.db.contains((Servers.id == ctx.guild.id) & (Servers.roles.any(Roles.id == role.id))):
            raise commands.errors.BadArgument(f'{role.name} is not a requestable role.') 
 
-        if self.bot.db.contains((Servers.id == ctx.guild.id) & (Servers.roles.any(Roles.id == role.id)) & (Servers.roles.any(Roles.type == type))):
+        if self.bot.db.contains((Servers.id == ctx.guild.id) & Servers.roles.any((Roles.id == role.id) & (Roles.type == type))):
            raise commands.errors.BadArgument(f'{role.name} is already a {type} requestable role.') 
 
-        self.db.update(list_update('roles', lambda x: x['id'] == role.id, {'id': role.id, 'type': type}), Servers.id == ctx.guild.id)
+        self.db.update(utils.list_update('roles', lambda x: x['id'] == role.id, {'id': role.id, 'type': type}), Servers.id == ctx.guild.id)
         await ctx.send(f':white_check_mark: {role.name} is now a {type} requestable role.')
 
 
