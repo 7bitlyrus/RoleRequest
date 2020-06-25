@@ -10,7 +10,7 @@ import config
 LOG_FORMAT = '[%(asctime)s] [%(levelname)s]: %(message)s'
 logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 
-bot = commands.Bot(command_prefix=commands.when_mentioned, case_insensitive=True)
+bot = commands.Bot(command_prefix=commands.when_mentioned_or("::"), case_insensitive=True)
 db = TinyDB('db.json')
 
 class Core(commands.Cog):

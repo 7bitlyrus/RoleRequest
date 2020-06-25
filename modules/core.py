@@ -57,11 +57,10 @@ class RoleRequest(commands.Cog):
     @_role.command(name='add', usage='<role> [public|restricted]')
     @commands.has_guild_permissions(manage_roles=True)
     @utils.guild_in_db()
-    async def _role_add(self, ctx, role: discord.Role, type: typing.Optional[str] = 'public'):
+    async def _role_add(self, ctx, role: discord.Role, roletype: typing.Optional[str] = 'public'):
         '''
         Adds a role to the requestable roles
         '''
-        Roles = Query()
         types = {
             'public': 'public',
             'restricted': 'restricted',
@@ -70,29 +69,26 @@ class RoleRequest(commands.Cog):
             'r': 'restricted'
         }
 
-        if self.db.contains((Servers.id == ctx.guild.id) & (Servers.roles.any(Roles.id == role.id))):
+        if self.db.contains(( Servers.id == ctx.guild.id ) & ( Servers.roles[str(role.id)].exists() )):
            raise commands.errors.BadArgument(f'{role.name} is already a requestable role.') 
 
-        if not type.lower() in types:
-            raise commands.errors.BadArgument(f'{type} is not a valid type.') 
+        if not roletype.lower() in types:
+            raise commands.errors.BadArgument(f'{roletype} is not a valid type.') 
         else:
-            resolved_type = types[type.lower()]
+            resolved_type = types[roletype.lower()]
 
-        self.db.update(utils.list_append('roles', {'id': role.id, 'type': resolved_type}), Servers.id == ctx.guild.id)
+        self.db.update(utils.doc_dd_set(f'roles.{role.id}', { 'type': resolved_type }), Servers.id == ctx.guild.id)
         await ctx.send(f':white_check_mark: {role.name} added as a requestable {resolved_type} role.')
          
 
     @_role.command(name='remove')
     @commands.has_guild_permissions(manage_roles=True)
-    @utils.guild_in_db()
     async def _role_remove(self, ctx, role: discord.Role):
         '''Removes role from the requestable roles'''
-        Roles = Query()
-
-        if not self.bot.db.contains((Servers.id == ctx.guild.id) & (Servers.roles.any(Roles.id == role.id))):
+        if not self.db.contains(( Servers.id == ctx.guild.id ) & ( Servers.roles[str(role.id)].exists() )):
            raise commands.errors.BadArgument(f'{role.name} is not a requestable role.') 
 
-        self.db.update(utils.list_remove('roles', lambda x: x['id'] == role.id), Servers.id == ctx.guild.id)
+        self.db.update(utils.doc_dd_del(f'roles.{role.id}'), Servers.id == ctx.guild.id)
         await ctx.send(f':white_check_mark: {role.name} removed as a requestable role.')
 
     @_role.command(name='restrict')
@@ -107,17 +103,17 @@ class RoleRequest(commands.Cog):
         '''Makes a restricted role public'''
         await self._role_update_role(ctx, role, 'public')
 
-    async def _role_update_role(self, ctx, role: discord.Role, type):
-        Roles = Query()
+    async def _role_update_role(self, ctx, role: discord.Role, roletype):
+        doc = self.db.get( Servers.id == ctx.guild.id )
 
-        if not self.bot.db.contains((Servers.id == ctx.guild.id) & (Servers.roles.any(Roles.id == role.id))):
+        if not (doc and str(role.id) in doc['roles']):
            raise commands.errors.BadArgument(f'{role.name} is not a requestable role.') 
 
-        if self.bot.db.contains((Servers.id == ctx.guild.id) & Servers.roles.any((Roles.id == role.id) & (Roles.type == type))):
-           raise commands.errors.BadArgument(f'{role.name} is already a {type} requestable role.') 
+        if doc['roles'][str(role.id)]['type'] == roletype:
+           raise commands.errors.BadArgument(f'{role.name} is already a {roletype} requestable role.') 
 
-        self.db.update(utils.list_update('roles', lambda x: x['id'] == role.id, {'id': role.id, 'type': type}), Servers.id == ctx.guild.id)
-        await ctx.send(f':white_check_mark: {role.name} is now a {type} requestable role.')
+        self.db.update(utils.doc_dd_set(f'roles.{role.id}.type', roletype), Servers.id == ctx.guild.id)
+        await ctx.send(f':white_check_mark: {role.name} is now a {roletype} requestable role.')
 
 
 def setup(bot):
