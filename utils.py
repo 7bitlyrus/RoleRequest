@@ -49,7 +49,7 @@ async def sendListEmbed(ctx, title, lst, *, raw_override=None, footer=None):
 
     # Start building with description
     description = ''
-    for i in range(0, len(lst)):
+    for i in range(len(lst)):
         # Description < Overall, so we won't have to worry about hitting it yet; + 1 for newline
         if len(description) + lengths[i] + 1 > LEN_LIMITS[1]: break 
 
@@ -60,7 +60,7 @@ async def sendListEmbed(ctx, title, lst, *, raw_override=None, footer=None):
 
     # If description is full, start with fields
     fields = []
-    for f in range(0, 23): # 24 Fields, reserve last one for maximum length link
+    for f in range(24): # 24 Fields, reserve last one for maximum length link
         if lastItem + 1 == len(lst): break
         if lenOverall + lengths[lastItem+1] + 1 > LEN_LIMITS[0]: break
 
@@ -82,7 +82,7 @@ async def sendListEmbed(ctx, title, lst, *, raw_override=None, footer=None):
     else:
         file = None
 
-    # Create the embed opject (finally)
+    # Create the embed object (finally)
     embed = discord.Embed(title=title, description=description)
     if footer: embed.set_footer(text=footer)
     for field in fields:
