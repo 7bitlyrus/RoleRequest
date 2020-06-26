@@ -18,13 +18,54 @@ class RoleRequest(commands.Cog):
     @commands.guild_only()
     async def _list(self, ctx):
         '''Lists all requestable roles'''
-        return await ctx.send('LIST') # TODO
+        return await self._list_helper(ctx, False)
 
     @_list.command(name='all')
     @commands.has_guild_permissions(manage_roles=True)
     async def _list_all(self, ctx):
         '''Lists all roles in the server'''
-        return await ctx.send('LIST ALL') # TODO
+        return await self._list_helper(ctx, True)
+
+    async def _list_helper(self, ctx, listAll):
+        doc = self.db.get( Servers.id == ctx.guild.id )
+
+        if not listAll: 
+            if not ((doc and len(doc['roles']))):
+                raise commands.errors.BadArgument(f'This server does not have any requestable roles. (Use list all to list all roles.)')
+
+            roles = list(filter(lambda r: str(r.id) in doc['roles'], ctx.guild.roles)) # Roles in requestable roles
+        else: 
+            roles = ctx.guild.roles
+
+        roles = list(filter(lambda r: not r.is_default(), reversed(roles))) # Reversed without @everyone role
+
+        # Make list from roles: formatted list of items and raw string of items
+        def format_list(*, raw=False):
+            def predicate(role):
+                if doc and str(role.id) in doc['roles']: 
+                    typeName = doc['roles'][str(role.id)]['type'].capitalize()
+                    typeStr = f' - {typeName}' if raw else f' *{typeName}*'
+                else:
+                    typeStr = ''
+
+                if raw:
+                    colorStr = '' if role.color == discord.Colour.default() else f' [{role.color}]'
+                    return f'{role.name}{ colorStr} ({role.id}){ typeStr}'
+                else:
+                    return f'<@&{role.id}> (`{role.id}`){ typeStr}'
+            return predicate
+        
+        title = 'All Roles' if listAll else 'Requestable Roles'
+
+        if commands.has_permissions(manage_roles=True)(ctx) and not listAll:
+            footer = 'Use the \'list all\' command to list all server roles.' 
+        else:
+            footer = ''
+
+        lst = list(map(format_list(), roles))
+        raw = '\r\n'.join(list(map(format_list(raw=True), roles)))
+        
+        await utils.sendListEmbed(ctx, title, lst, raw_override=raw, footer=footer)
 
 
     @commands.command(name='join')
@@ -87,6 +128,9 @@ class RoleRequest(commands.Cog):
 
         if self.db.contains(( Servers.id == ctx.guild.id ) & ( Servers.roles[str(role.id)].exists() )):
            raise commands.errors.BadArgument(f'{role.name} is already a requestable role.') 
+
+        if role.is_default():
+            raise commands.errors.BadArgument(f'{role.name} is not a valid role.') 
 
         if not roletype.lower() in types:
             raise commands.errors.BadArgument(f'{roletype} is not a valid type.') 
