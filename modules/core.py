@@ -1,5 +1,5 @@
-import typing
 import logging
+import typing
 
 import discord
 from discord.ext import commands
@@ -56,15 +56,14 @@ class RoleRequest(commands.Cog):
             return predicate
         
         title = 'All Roles' if listAll else 'Requestable Roles'
+        lst = list(map(format_list(), roles))
+        raw = '\r\n'.join(list(map(format_list(raw=True), roles)))
 
         if commands.has_permissions(manage_roles=True)(ctx) and not listAll:
             footer = 'Use the \'list all\' command to list all server roles.' 
         else:
             footer = ''
 
-        lst = list(map(format_list(), roles))
-        raw = '\r\n'.join(list(map(format_list(raw=True), roles)))
-        
         await utils.sendListEmbed(ctx, title, lst, raw_override=raw, footer=footer)
 
 
@@ -86,7 +85,7 @@ class RoleRequest(commands.Cog):
             raise commands.errors.BadArgument(f'You already have the role {role.name}.') 
 
         if doc['roles'][str(role.id)]['type'] == 'restricted':
-            raise NotImplementedError("role restricted")
+            return await self.bot.get_cog('RequestManager').user_request_create(ctx, role)
 
         else:
             await ctx.author.add_roles(role)
@@ -97,11 +96,16 @@ class RoleRequest(commands.Cog):
     @commands.bot_has_guild_permissions(manage_roles=True)
     async def _leave(self, ctx, role: discord.Role):
         '''Leaves or cancels a request for a requestable role'''
-        if not self.db.contains(( Servers.id == ctx.guild.id ) & ( Servers.roles[str(role.id)].exists() )):
+        doc = self.db.get( Servers.id == ctx.guild.id )
+
+        if not (doc and str(role.id) in doc['roles']):
            raise commands.errors.BadArgument(f'{role.name} is not a requestable role.') 
 
         if not role in ctx.author.roles:
-            raise commands.errors.BadArgument(f'You do not have the role {role.name}.') 
+            if doc['roles'][str(role.id)]['type'] == 'restricted':
+                return await self.bot.get_cog('RequestManager').user_request_cancel(ctx, role)
+            else:
+                raise commands.errors.BadArgument(f'You do not have the role {role.name}.') 
 
         await ctx.author.remove_roles(role)
         return await ctx.send(f':white_check_mark: You left the role {role.name}.')

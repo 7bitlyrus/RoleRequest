@@ -1,10 +1,10 @@
-import logging
 import io
+import logging
 
+import dict_deep
 import discord
 from discord.ext import commands
 from tinydb import Query
-import dict_deep
 
 Servers = Query()
 

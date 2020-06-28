@@ -33,6 +33,6 @@ class Core(commands.Cog):
 bot.add_cog(Core(bot))
 bot.load_extension('jishaku')
 bot.load_extension('modules.core')
+bot.load_extension('modules.restricted')
 bot.run(config.token)
-# TODO: Add restricted roles module (stub: https://github.com/7bitlyrus/rolerequest/blob/3b4f975/modules/core.py#L81)
 # TODO: Add reaction roles module
