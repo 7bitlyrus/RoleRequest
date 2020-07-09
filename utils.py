@@ -6,37 +6,45 @@ import discord
 from discord.ext import commands
 from tinydb import Query
 
+import config
+
 Servers = Query()
 
-# Database Operations
-def doc_dd_set(key, val):
-    def transform(doc):
-        dict_deep.deep_set(doc, key, val)
-    return transform
-
-def doc_dd_del(key):
-    def transform(doc):
-        dict_deep.deep_del(doc, key)
-    return transform
-
-# Checks
 def guild_in_db():
     async def predicate(ctx):
-        try:
-            db = ctx.bot.db
+        if not ctx.bot.db.contains(Servers.id == ctx.guild.id):
+            default_document = {'id': ctx.guild.id, 'roles': {}}
 
-            if not db.contains(Servers.id == ctx.guild.id):
-                default_document = {'id': ctx.guild.id, 'roles': {}}
-
-                db.insert(default_document)
-                logging.info(f'[Bot] Guild initalized to database: {ctx.guild} ({ctx.guild.id})')
-            return True
-        except Exception as e:
-            logging.warn(e)
-            return False
+            ctx.bot.db.insert(default_document)
+            logging.info(f'[Bot] Guild initalized to database: {ctx.guild} ({ctx.guild.id})')
+        return True
     return commands.check(predicate)
 
-# Functions
+def getGuildDoc(ctx):
+    return ctx.bot.db.get( Servers.id == ctx.guild.id )
+
+def guildKeySet(ctx, key, val):
+    def predicate(key, val):
+        def transform(doc):
+            dict_deep.deep_set(doc, key, val)
+        return transform
+
+    return ctx.bot.db.update(predicate(key, val), Servers.id == ctx.guild.id)
+
+def guildKeyDel(ctx, key):
+    def predicate(key):
+        def transform(doc):
+            dict_deep.deep_del(doc, key)
+        return transform
+
+    return ctx.bot.db.update(predicate(key), Servers.id == ctx.guild.id)
+
+async def cmdSuccess(ctx, text):
+    return await ctx.send(f'{config.greenTick} {text}')
+
+async def cmdFail(ctx, text):
+    return await ctx.send(f'{config.redTick} {text}')
+
 async def sendListEmbed(ctx, title, lst, *, raw_override=None, footer=None):
     # Overall - 128 - footer - title, description, field values
     footer_len = 0 if not footer else len(footer)
@@ -89,7 +97,9 @@ async def sendListEmbed(ctx, title, lst, *, raw_override=None, footer=None):
         embed.add_field(name='\uFEFF', value=field, inline=False) # \uFEFF = ZERO WIDTH NO-BREAK SPACE
 
     message = await ctx.send(embed=embed, file=file)
-    if file: # Update the message embed with the file url
+
+    # Update the message embed with the file url
+    if file: 
         url = message.attachments[0].url
         newValue = fields[len(fields)-1] + f' [See all {len(lst)}.]({url})'
 

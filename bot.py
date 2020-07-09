@@ -1,4 +1,3 @@
-import datetime
 import logging
 
 import discord
@@ -6,11 +5,14 @@ from discord.ext import commands
 from tinydb import TinyDB
 
 import config
+import utils
 
 LOG_FORMAT = '[%(asctime)s] [%(levelname)s]: %(message)s'
 logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 
 bot = commands.Bot(command_prefix=commands.when_mentioned_or("::"), case_insensitive=True)
+    # allowed_mentions=discord.AllowedMentions(everyone=False, users=False, roles=False)) TODO add in discord.py 1.4 
+
 db = TinyDB('db.json')
 
 class Core(commands.Cog):
@@ -22,13 +24,13 @@ class Core(commands.Cog):
     async def on_ready(self):
         logging.info('[Bot] Ready')
 
-    # TODO: don't use exceptions for error handling
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.errors.CommandInvokeError):
-            await ctx.send(f':warning: Command raised an exception. Time occurred: `{datetime.datetime.now()}`')
+            await utils.cmdFail(ctx, f'Command raised an unexpected exception.')
             raise error
-        else: await ctx.send(f':x: {str(error)}')
+        else:
+            await utils.cmdFail(ctx, str(error))
 
 bot.add_cog(Core(bot))
 bot.load_extension('jishaku')
