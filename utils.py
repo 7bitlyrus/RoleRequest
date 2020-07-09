@@ -13,7 +13,15 @@ Servers = Query()
 def guild_in_db():
     async def predicate(ctx):
         if not ctx.bot.db.contains(Servers.id == ctx.guild.id):
-            default_document = {'id': ctx.guild.id, 'roles': {}}
+            default_document = {
+                'id': ctx.guild.id, 
+                'requests_opts': {
+                    'channel': None,
+                    'hidejoins': False
+                }, 
+                'requests': {},
+                'roles': {}
+            }
 
             ctx.bot.db.insert(default_document)
             logging.info(f'[Bot] Guild initalized to database: {ctx.guild} ({ctx.guild.id})')

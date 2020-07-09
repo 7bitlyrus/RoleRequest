@@ -84,7 +84,7 @@ class RoleRequest(commands.Cog):
             return await utils.cmdFail(ctx, f'You already have the role "{role.name}".') 
 
         if doc['roles'][str(role.id)]['type'] == 'restricted':
-            return await self.bot.get_cog('RequestManager').user_request_create(ctx, role)
+            return await self.bot.get_cog('RequestManager').request_create(ctx, role)
 
         await ctx.author.add_roles(role)
         return await utils.cmdSuccess(ctx, f'You have joined the role "{role.name}".')
@@ -101,7 +101,7 @@ class RoleRequest(commands.Cog):
 
         if not role in ctx.author.roles:
             if doc['roles'][str(role.id)]['type'] == 'restricted':
-                return await self.bot.get_cog('RequestManager').user_request_cancel(ctx, role)
+                return await self.bot.get_cog('RequestManager').request_cancel(ctx, role)
             
             return await utils.cmdFail(ctx, f'You do not have the role" {role.name}".') 
 
@@ -178,7 +178,6 @@ class RoleRequest(commands.Cog):
            return await utils.cmdFail(ctx, f'"{role.name}" is already a {roletype} requestable role.') 
 
         utils.guildKeySet(ctx, f'roles.{role.id}.type', roletype)
-        
         return await utils.cmdSuccess(ctx, f'"{role.name}" is now a {roletype} requestable role.')
 
 
