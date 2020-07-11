@@ -14,11 +14,36 @@ class RequestManager(commands.Cog):
         self.db = bot.db
 
     # TODO: Listen for reactions
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload):
+        if not payload.member: return
+        if payload.member.bot: return
+
+        doc = utils.getGuildDoc(self.bot, payload.member.guild)
+        if not doc: return
+
+        request = doc['requests'][str(payload.message_id)]
+        if not request: return
+
+        if str(payload.emoji) == config.greenTick:
+            requester = payload.member.guild.get_member(request['user'])
+            role = payload.member.guild.get_role(request['role'])
+
+            if not requester or not role: return
+
+            await self.request_update(payload.member.guild, payload.message_id, request, 'approved', payload.member)
+            return await requester.add_roles(role)
+
+        elif str(payload.emoji) == config.redTick:
+            return await self.request_update(payload.member.guild, payload.message_id, request, 'denied', payload.member)
+        
+        return
+
     # TODO: Expiry check
 
     # Create and cancel request methods, called from join/leave commands in core.py
     async def request_create(self, ctx, role):
-        doc = utils.getGuildDoc(ctx)
+        doc = utils.getGuildDoc(ctx.bot, ctx.guild)
 
         channel = doc['requests_opts']['channel']
         users_requests = list(filter(lambda e: e['user'] == ctx.author.id, doc['requests'].values()))
@@ -66,7 +91,7 @@ class RequestManager(commands.Cog):
         await embed_message.add_reaction(config.greenTick)
         await embed_message.add_reaction(config.redTick)
 
-        utils.guildKeySet(ctx, f'requests.{embed_message.id}', { 
+        utils.guildKeySet(ctx.bot, ctx.guild, f'requests.{embed_message.id}', { 
             'channel': embed_message.channel.id,
             'created': datetime.datetime.utcnow().timestamp(),
             'role': role.id, 
@@ -76,7 +101,7 @@ class RequestManager(commands.Cog):
         return await utils.cmdSuccess(ctx, f'Your request for "{role.name}" has been submitted.', delete_after = delete)
 
     async def request_cancel(self, ctx, role):
-        doc = utils.getGuildDoc(ctx)
+        doc = utils.getGuildDoc(ctx.bot, ctx.guild)
 
         requests = list(filter(
             lambda e: e[1]['user'] == ctx.author.id and e[1]['role'] == role.id, doc['requests'].items()))
@@ -85,29 +110,39 @@ class RequestManager(commands.Cog):
         if not request[1] or request[1]['status'] != 'pending':
             return await utils.cmdFail(ctx, f'You do not have a request pending for the role "{role.name}".')
 
-        await self.request_update(ctx, request, 'cancelled')
+        await self.request_update(ctx.guild, request[0], request[1], 'cancelled')
 
         return await utils.cmdSuccess(ctx, f'Your request for "{role.name}" has been cancelled.')
 
-    async def request_update(self, ctx, req, status):
+
+    async def request_update(self, guild, message_id, request, status, mod = None):
         statuses = {
             'cancelled': {
                 'colour': discord.Colour.darker_grey(),
                 'footer': 'Request cancelled',
                 'status': 'Cancelled by user.'
+            },
+            'approved': {
+                'colour': discord.Colour.dark_green(),
+                'footer': 'Request approved',
+                'status': f'Approved by {mod}.'
+            },
+            'denied': {
+                'colour': discord.Colour.dark_red(),
+                'footer': 'Request denied',
+                'status': f'Denied by {mod}.'
             }
         }
 
-        message_id, request = req
         layout = statuses[status]
 
         if status == 'expired':
-            utils.guildKeyDel(ctx, f'requests.{message_id}') 
+            utils.guildKeyDel(self.bot, guild, f'requests.{message_id}') 
         else:
-            utils.guildKeySet(ctx, f'requests.{message_id}.status', status) 
+            utils.guildKeySet(self.bot, guild, f'requests.{message_id}.status', status) 
 
         try:
-            embed_message = await ctx.guild.get_channel(request['channel']).fetch_message(message_id)
+            embed_message = await guild.get_channel(request['channel']).fetch_message(message_id)
 
             embed = embed_message.embeds[0]
             embed.colour = layout['colour']
@@ -120,7 +155,8 @@ class RequestManager(commands.Cog):
             await embed_message.clear_reactions()
 
             return embed_message
-        except:
+        except Exception as e:
+            print(e)
             return None
             
 
@@ -139,12 +175,12 @@ class RequestManager(commands.Cog):
     @utils.guild_in_db()
     async def _requests_disable(self, ctx):
         '''Disables requests for the guild'''
-        doc = utils.getGuildDoc(ctx)
+        doc = utils.getGuildDoc(ctx.bot, ctx.guild)
 
         if doc['requests_opts']['channel'] == None:
             return await utils.cmdFail(ctx, f'Requests are already disabled for this guild.')
 
-        utils.guildKeySet(ctx, f'requests_opts.channel', None)
+        utils.guildKeySet(ctx.bot, ctx.guild, f'requests_opts.channel', None)
         return await utils.cmdSuccess(ctx, f'Requests are now disabled for this guild.')
 
     @_requests.command(name='channel')
@@ -152,7 +188,7 @@ class RequestManager(commands.Cog):
     @utils.guild_in_db()
     async def _requests_channel(self, ctx, channel: typing.Optional[discord.TextChannel]):
         '''Gets/sets the channel that requests will be posted in'''
-        doc = utils.getGuildDoc(ctx)
+        doc = utils.getGuildDoc(ctx.bot, ctx.guild)
         current = doc['requests_opts']['channel']
         msg_prefix = 'The requests channel is'
         
@@ -164,7 +200,7 @@ class RequestManager(commands.Cog):
         if channel.id == current:
             return await utils.cmdFail(ctx, f'{msg_prefix} already {channel}.')
             
-        utils.guildKeySet(ctx, f'requests_opts.channel', channel.id)
+        utils.guildKeySet(ctx.bot, ctx.guild, f'requests_opts.channel', channel.id)
         return await utils.cmdSuccess(ctx, f'{msg_prefix} now {channel}.')
 
     @_requests.command(name='hidejoins', aliases=['hidejoin'])
@@ -172,7 +208,7 @@ class RequestManager(commands.Cog):
     @utils.guild_in_db()
     async def _requests_quiet(self, ctx, setting: typing.Optional[bool]):
         '''Shows/sets automatic deletion of join commands for restricted roles'''
-        doc = utils.getGuildDoc(ctx)
+        doc = utils.getGuildDoc(ctx.bot, ctx.guild)
         current = doc['requests_opts']['hidejoins']
         msg_prefix = 'Automatic deletion of join commands for restricted roles is'
 
@@ -182,7 +218,7 @@ class RequestManager(commands.Cog):
         if setting == current:
             return await utils.cmdFail(ctx, f'{msg_prefix} already **{"enabled" if current else "disabled"}**.')
 
-        utils.guildKeySet(ctx, f'requests_opts.hidejoins', setting)
+        utils.guildKeySet(ctx.bot, ctx.guild, f'requests_opts.hidejoins', setting)
         return await utils.cmdSuccess(ctx, f'{msg_prefix} now **{"enabled" if setting else "disabled"}**.')
 
             
