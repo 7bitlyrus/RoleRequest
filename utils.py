@@ -47,11 +47,11 @@ def guildKeyDel(ctx, key):
 
     return ctx.bot.db.update(predicate(key), Servers.id == ctx.guild.id)
 
-async def cmdSuccess(ctx, text):
-    return await ctx.send(f'{config.greenTick} {text}')
+async def cmdSuccess(ctx, text, *, delete_after = None):
+    return await ctx.send(f'{config.greenTick} {text}', delete_after = delete_after)
 
-async def cmdFail(ctx, text):
-    return await ctx.send(f'{config.redTick} {text}')
+async def cmdFail(ctx, text, *, delete_after = None):
+    return await ctx.send(f'{config.redTick} {text}', delete_after = delete_after)
 
 async def sendListEmbed(ctx, title, lst, *, raw_override=None, footer=None):
     # Overall - 128 - footer - title, description, field values

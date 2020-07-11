@@ -1,9 +1,11 @@
+import datetime
 import logging
 import typing
 
 import discord
 from discord.ext import commands
 
+import config
 import utils
 
 class RequestManager(commands.Cog):
@@ -12,11 +14,62 @@ class RequestManager(commands.Cog):
         self.db = bot.db
 
     # TODO: Listen for reactions
-
+    # TODO: Expiry check
 
     # Create and cancel request methods, called from join/leave commands in core.py
     async def request_create(self, ctx, role):
-        return await ctx.send('user create request') # TODO
+        doc = utils.getGuildDoc(ctx)
+
+        channel = doc['requests_opts']['channel']
+        users_requests = list(filter(lambda e: e['user'] == ctx.author.id, doc['requests'].values()))
+
+        if doc['requests_opts']['hidejoins']:
+            try:
+                await ctx.message.delete(delay = 5)
+            except:
+                pass
+            delete = 15
+        else: 
+            delete = None
+
+        if not channel:
+            return await utils.cmdFail(ctx, f'Restricted role requests are currently disabled for this guild.', 
+            delete_after = delete)
+
+        if list(filter(lambda e: e['role'] == role.id, users_requests)):
+            return await utils.cmdFail(ctx, f'You already have a request pending for the role "{role.name}".', 
+            delete_after = delete)
+
+        # Ratelimit if ratelimit score > 21; score calculated from status of requests in last 24h
+        rl_score = 0
+        for e in users_requests:
+            if(e['status'] == 'denied'): rl_score += 7
+            if(e['status'] == 'cancelled'): rl_score += 5
+            if(e['status'] == 'pending'): rl_score += 3
+        if rl_score > 21:
+            return await utils.cmdFail(ctx, 'You have too many recent requests. Please try again later.', 
+            delete_after = delete)
+
+        embed = discord.Embed(
+            title="Restricted Role Request",
+            description=f'<@{ctx.message.author.id}> requested the <@&{role.id}> role.',
+            color = discord.Colour.blurple(),
+            timestamp = datetime.datetime.utcnow() + datetime.timedelta(hours=24))
+        embed.set_author(name=f'{ctx.message.author} ({ctx.message.author.id})', icon_url=ctx.message.author.avatar_url)
+        embed.add_field(name='Status', value='Pending. React to approve or deny the request.')
+        embed.set_footer(text='Request expires')
+
+        embed_message = await ctx.guild.get_channel(channel).send(embed=embed)
+        await embed_message.add_reaction(config.greenTick)
+        await embed_message.add_reaction(config.redTick)
+
+        utils.guildKeySet(ctx, f'requests.{ctx.message.id}', { 
+            'user': ctx.author.id, 
+            'role': role.id, 
+            'status': 'pending',
+            'embed': embed_message.id
+        })
+        return await utils.cmdSuccess(ctx, f'Your request for "{role.name}" has been submitted.', delete_after = delete)
 
     async def request_cancel(self, ctx, role):
         return await ctx.send('user cancel request') # TODO
