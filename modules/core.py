@@ -103,7 +103,7 @@ class RoleRequest(commands.Cog):
             if doc['roles'][str(role.id)]['type'] == 'restricted':
                 return await self.bot.get_cog('RequestManager').request_cancel(ctx, role)
             
-            return await utils.cmdFail(ctx, f'You do not have the role" {role.name}".') 
+            return await utils.cmdFail(ctx, f'You do not have the role "{role.name}".') 
 
         await ctx.author.remove_roles(role)
         return await utils.cmdSuccess(ctx, f'You left the role "{role.name}".')

@@ -34,11 +34,12 @@ class RequestManager(commands.Cog):
 
         if not channel:
             return await utils.cmdFail(ctx, f'Restricted role requests are currently disabled for this guild.', 
-            delete_after = delete)
+                delete_after = delete)
 
-        if list(filter(lambda e: e['role'] == role.id, users_requests)):
+        existing_request = list(filter(lambda e: e['role'] == role.id, users_requests))[-1]
+        if existing_request and existing_request['status'] == 'pending':
             return await utils.cmdFail(ctx, f'You already have a request pending for the role "{role.name}".', 
-            delete_after = delete)
+                delete_after = delete)
 
         # Ratelimit if ratelimit score > 21; score calculated from status of requests in last 24h
         rl_score = 0
@@ -48,7 +49,7 @@ class RequestManager(commands.Cog):
             if(e['status'] == 'pending'): rl_score += 3
         if rl_score > 21:
             return await utils.cmdFail(ctx, 'You have too many recent requests. Please try again later.', 
-            delete_after = delete)
+                delete_after = delete)
 
         embed = discord.Embed(
             title="Restricted Role Request",
@@ -67,19 +68,44 @@ class RequestManager(commands.Cog):
             'user': ctx.author.id, 
             'role': role.id, 
             'status': 'pending',
-            'embed': embed_message.id
+            'embed': (embed_message.channel.id, embed_message.id)
         })
         return await utils.cmdSuccess(ctx, f'Your request for "{role.name}" has been submitted.', delete_after = delete)
 
     async def request_cancel(self, ctx, role):
-        return await ctx.send('user cancel request') # TODO
+        doc = utils.getGuildDoc(ctx)
+
+        key, val = list(filter(
+            lambda e: e[1]['user'] == ctx.author.id and e[1]['role'] == role.id, doc['requests'].items()))[-1]
+
+        if not val or val['status'] != 'pending':
+            return await utils.cmdFail(ctx, f'You do not have a request pending for the role "{role.name}".')
+
+        try:
+            embed_message = await ctx.guild.get_channel(val['embed'][0]).fetch_message(val['embed'][1])
+
+            embed = embed_message.embeds[0]
+            embed.colour = discord.Colour.darker_grey()
+            embed.timestamp = datetime.datetime.utcnow()
+            embed.set_footer(text='Request cancelled')
+            embed.remove_field(0)
+            embed.add_field(name='Status', value='Cancelled by user.')
+            
+            await embed_message.edit(embed=embed)
+            await embed_message.clear_reactions()
+        except:
+            pass
+        
+        utils.guildKeySet(ctx, f'requests.{key}.status', 'cancelled') 
+
+        return await utils.cmdSuccess(ctx, f'Your request for "{role.name}" has been cancelled.')
 
 
     # Approve and deny methods, called from reactions listener
     async def request_approve(self, ctx):
         return await ctx.send('mod approve request') # TODO
 
-    async def request_cancel(self, ctx):
+    async def request_deny(self, ctx):
         return await ctx.send('mod deny request') # TODO
 
 
