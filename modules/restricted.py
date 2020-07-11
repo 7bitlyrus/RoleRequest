@@ -3,7 +3,7 @@ import logging
 import typing
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 import config
 import utils
@@ -12,8 +12,31 @@ class RequestManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db = bot.db
+        self.expiry_check.start()
+        self.expiry_check.clear_exception_types()
 
-    # TODO: Listen for reactions
+    def cog_unload(self):
+        self.expiry_check.stop()
+
+    @tasks.loop(minutes=10, reconnect=False)
+    async def expiry_check(self):
+        logging.info('[Restricted] Checking for expired requests...')
+
+        expire_before = (datetime.datetime.utcnow() - datetime.timedelta(hours=24)).timestamp() # 24 hours ago
+
+        for server in self.db:
+            for message_id, request in server['requests'].items():
+                if request['created'] > expire_before: continue
+                
+                guild = await self.bot.fetch_guild(server['id'])
+                await self.request_update(guild, message_id, request, 'expired')
+                logging.info(f'[Restricted] Expired request {message_id}')
+
+
+    @expiry_check.before_loop
+    async def before_expiry_check(self):
+        await self.bot.wait_until_ready()
+
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
         if not payload.member: return
@@ -26,20 +49,12 @@ class RequestManager(commands.Cog):
         if not request: return
 
         if str(payload.emoji) == config.greenTick:
-            requester = payload.member.guild.get_member(request['user'])
-            role = payload.member.guild.get_role(request['role'])
-
-            if not requester or not role: return
-
-            await self.request_update(payload.member.guild, payload.message_id, request, 'approved', payload.member)
-            return await requester.add_roles(role)
+            return await self.request_update(payload.member.guild, payload.message_id, request, 'approved', payload.member)
 
         elif str(payload.emoji) == config.redTick:
             return await self.request_update(payload.member.guild, payload.message_id, request, 'denied', payload.member)
         
         return
-
-    # TODO: Expiry check
 
     # Create and cancel request methods, called from join/leave commands in core.py
     async def request_create(self, ctx, role):
@@ -73,8 +88,7 @@ class RequestManager(commands.Cog):
             if(e['status'] == 'denied'): rl_score += 7
             if(e['status'] == 'cancelled'): rl_score += 5
             if(e['status'] == 'pending'): rl_score += 3
-        # if rl_score > 21:
-        if rl_score > 100000000: # ************************
+        if rl_score > 21:
             return await utils.cmdFail(ctx, 'You have too many recent requests. Please try again later.', 
                delete_after = delete)
 
@@ -98,6 +112,7 @@ class RequestManager(commands.Cog):
             'status': 'pending',
             'user': ctx.author.id, 
         })
+
         return await utils.cmdSuccess(ctx, f'Your request for "{role.name}" has been submitted.', delete_after = delete)
 
     async def request_cancel(self, ctx, role):
@@ -110,7 +125,7 @@ class RequestManager(commands.Cog):
         if not request[1] or request[1]['status'] != 'pending':
             return await utils.cmdFail(ctx, f'You do not have a request pending for the role "{role.name}".')
 
-        await self.request_update(ctx.guild, request[0], request[1], 'cancelled')
+        await self.request_update(ctx.guild, request[0], request[1], 'cancelled', ctx.author, role)
 
         return await utils.cmdSuccess(ctx, f'Your request for "{role.name}" has been cancelled.')
 
@@ -124,40 +139,62 @@ class RequestManager(commands.Cog):
             },
             'approved': {
                 'colour': discord.Colour.dark_green(),
+                'dm': 'been approved.',
                 'footer': 'Request approved',
                 'status': f'Approved by {mod}.'
             },
             'denied': {
                 'colour': discord.Colour.dark_red(),
+                'dm': 'been denied.',
                 'footer': 'Request denied',
                 'status': f'Denied by {mod}.'
+            },
+            'expired': {
+                'colour': discord.Colour.greyple(),
+                'dm': 'expired due to lack of moderator response.',
+                'footer': 'Request expired',
+                'status': f'Request expired due to lack of moderator response.'
             }
         }
 
+        requester = guild.get_member(request['user'])
+        role = guild.get_role(request['role'])
+
         layout = statuses[status]
+
+        if status == 'approved': await requester.add_roles(role)
 
         if status == 'expired':
             utils.guildKeyDel(self.bot, guild, f'requests.{message_id}') 
         else:
             utils.guildKeySet(self.bot, guild, f'requests.{message_id}.status', status) 
 
-        try:
-            embed_message = await guild.get_channel(request['channel']).fetch_message(message_id)
+        channel = await self.bot.fetch_channel(request['channel'])
+        
+        if request['status'] == 'pending':
+            try:
+                embed_message = await channel.fetch_message(message_id)
 
-            embed = embed_message.embeds[0]
-            embed.colour = layout['colour']
-            embed.timestamp = datetime.datetime.utcnow()
-            embed.set_footer(text=layout['footer'])
-            embed.remove_field(0)
-            embed.add_field(name='Status', value=layout['status'])
-            
-            await embed_message.edit(embed=embed)
-            await embed_message.clear_reactions()
+                embed = embed_message.embeds[0]
+                embed.colour = layout['colour']
+                embed.timestamp = datetime.datetime.utcnow()
+                embed.set_footer(text=layout['footer'])
+                embed.remove_field(0)
+                embed.add_field(name='Status', value=layout['status'])
+                
+                await embed_message.edit(embed=embed)
+                await embed_message.clear_reactions()
+            except:
+                pass
 
-            return embed_message
-        except Exception as e:
-            print(e)
-            return None
+            if status != 'cancelled':
+                try:
+                    member = await channel.guild.fetch_member(request['user'])
+                    await member.send(f'Your request for "{role}" in "{guild}" has {layout["dm"]}')
+                except:
+                    pass
+
+        return
             
 
     @commands.group(name='requests', invoke_without_command=True, case_insensitive=True, aliases=['request'])
@@ -220,7 +257,6 @@ class RequestManager(commands.Cog):
 
         utils.guildKeySet(ctx.bot, ctx.guild, f'requests_opts.hidejoins', setting)
         return await utils.cmdSuccess(ctx, f'{msg_prefix} now **{"enabled" if setting else "disabled"}**.')
-
             
 def setup(bot):
     bot.add_cog(RequestManager(bot))
