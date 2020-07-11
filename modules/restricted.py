@@ -49,10 +49,9 @@ class RequestManager(commands.Cog):
         if not request: return
 
         if str(payload.emoji) == config.greenTick:
-            return await self.request_update(payload.member.guild, payload.message_id, request, 'approved', payload.member)
-
+            await self.request_update(payload.member.guild, payload.message_id, request, 'approved', payload.member)
         elif str(payload.emoji) == config.redTick:
-            return await self.request_update(payload.member.guild, payload.message_id, request, 'denied', payload.member)
+            await self.request_update(payload.member.guild, payload.message_id, request, 'denied', payload.member)
         
         return
 
@@ -126,9 +125,7 @@ class RequestManager(commands.Cog):
             return await utils.cmdFail(ctx, f'You do not have a request pending for the role "{role.name}".')
 
         await self.request_update(ctx.guild, request[0], request[1], 'cancelled', ctx.author, role)
-
         return await utils.cmdSuccess(ctx, f'Your request for "{role.name}" has been cancelled.')
-
 
     async def request_update(self, guild, message_id, request, status, mod = None):
         statuses = {
@@ -157,21 +154,20 @@ class RequestManager(commands.Cog):
             }
         }
 
-        requester = guild.get_member(request['user'])
+        member = guild.get_member(request['user'])
         role = guild.get_role(request['role'])
-
         layout = statuses[status]
 
-        if status == 'approved': await requester.add_roles(role)
+        if status == 'approved': await member.add_roles(role)
 
         if status == 'expired':
             utils.guildKeyDel(self.bot, guild, f'requests.{message_id}') 
         else:
             utils.guildKeySet(self.bot, guild, f'requests.{message_id}.status', status) 
 
-        channel = await self.bot.fetch_channel(request['channel'])
-        
         if request['status'] == 'pending':
+            channel = await self.bot.fetch_channel(request['channel'])
+
             try:
                 embed_message = await channel.fetch_message(message_id)
 
@@ -189,14 +185,11 @@ class RequestManager(commands.Cog):
 
             if status != 'cancelled':
                 try:
-                    member = await channel.guild.fetch_member(request['user'])
                     await member.send(f'Your request for "{role}" in "{guild}" has {layout["dm"]}')
                 except:
                     pass
-
         return
             
-
     @commands.group(name='requests', invoke_without_command=True, case_insensitive=True, aliases=['request'])
     @commands.guild_only()
     async def _requests(self, ctx):

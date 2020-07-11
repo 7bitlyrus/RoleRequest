@@ -65,7 +65,6 @@ class RoleRequest(commands.Cog):
 
         await utils.sendListEmbed(ctx, title, lst, raw_override=raw, footer=footer)
 
-
     @commands.command(name='join')
     @commands.guild_only()
     @commands.bot_has_guild_permissions(manage_roles=True)
@@ -108,7 +107,6 @@ class RoleRequest(commands.Cog):
         await ctx.author.remove_roles(role)
         return await utils.cmdSuccess(ctx, f'You left the role "{role.name}".')
 
-
     @commands.group(name='roles', invoke_without_command=True, case_insensitive=True, aliases=['role'])
     @commands.guild_only()
     async def _role(self, ctx):
@@ -143,7 +141,6 @@ class RoleRequest(commands.Cog):
         utils.guildKeySet(ctx.bot, ctx.guild, f'roles.{role.id}', { 'type': resolved_type })
         return await utils.cmdSuccess(ctx, f'"{role.name}" added as a requestable {resolved_type} role.')
          
-
     @_role.command(name='remove')
     @commands.has_guild_permissions(manage_roles=True)
     async def _role_remove(self, ctx, role: discord.Role):
@@ -179,7 +176,6 @@ class RoleRequest(commands.Cog):
 
         utils.guildKeySet(ctx.bot, ctx.guild, f'roles.{role.id}.type', roletype)
         return await utils.cmdSuccess(ctx, f'"{role.name}" is now a {roletype} requestable role.')
-
 
 def setup(bot):
     bot.add_cog(RoleRequest(bot))
