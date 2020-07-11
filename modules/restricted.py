@@ -36,8 +36,9 @@ class RequestManager(commands.Cog):
             return await utils.cmdFail(ctx, f'Restricted role requests are currently disabled for this guild.', 
                 delete_after = delete)
 
-        existing_request = list(filter(lambda e: e['role'] == role.id, users_requests))[-1]
-        if existing_request and existing_request['status'] == 'pending':
+        existing_requests = list(filter(lambda e: e['role'] == role.id, users_requests))
+
+        if existing_requests and existing_requests[-1]['status'] == 'pending':
             return await utils.cmdFail(ctx, f'You already have a request pending for the role "{role.name}".', 
                 delete_after = delete)
 
@@ -75,8 +76,9 @@ class RequestManager(commands.Cog):
     async def request_cancel(self, ctx, role):
         doc = utils.getGuildDoc(ctx)
 
-        key, val = list(filter(
-            lambda e: e[1]['user'] == ctx.author.id and e[1]['role'] == role.id, doc['requests'].items()))[-1]
+        requests = list(filter(
+            lambda e: e[1]['user'] == ctx.author.id and e[1]['role'] == role.id, doc['requests'].items()))
+        key, val = requests[-1] if requests else (None, None)
 
         if not val or val['status'] != 'pending':
             return await utils.cmdFail(ctx, f'You do not have a request pending for the role "{role.name}".')
