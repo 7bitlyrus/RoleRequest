@@ -28,24 +28,24 @@ def guild_in_db():
         return True
     return commands.check(predicate)
 
-def getGuildDoc(ctx):
-    return ctx.bot.db.get( Servers.id == ctx.guild.id )
+def getGuildDoc(bot, guild):
+    return bot.db.get( Servers.id == guild.id )
 
-def guildKeySet(ctx, key, val):
+def guildKeySet(bot, guild, key, val):
     def predicate(key, val):
         def transform(doc):
             dict_deep.deep_set(doc, key, val)
         return transform
 
-    return ctx.bot.db.update(predicate(key, val), Servers.id == ctx.guild.id)
+    return bot.db.update(predicate(key, val), Servers.id == guild.id)
 
-def guildKeyDel(ctx, key):
+def guildKeyDel(bot, guild, key):
     def predicate(key):
         def transform(doc):
             dict_deep.deep_del(doc, key)
         return transform
 
-    return ctx.bot.db.update(predicate(key), Servers.id == ctx.guild.id)
+    return bot.db.update(predicate(key), Servers.id == guild.id)
 
 async def cmdSuccess(ctx, text, *, delete_after = None):
     return await ctx.send(f'{config.greenTick} {text}', delete_after = delete_after)
