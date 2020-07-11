@@ -48,9 +48,10 @@ class RequestManager(commands.Cog):
             if(e['status'] == 'denied'): rl_score += 7
             if(e['status'] == 'cancelled'): rl_score += 5
             if(e['status'] == 'pending'): rl_score += 3
-        if rl_score > 21:
+        # if rl_score > 21:
+        if rl_score > 100000000: # ************************
             return await utils.cmdFail(ctx, 'You have too many recent requests. Please try again later.', 
-                delete_after = delete)
+               delete_after = delete)
 
         embed = discord.Embed(
             title="Restricted Role Request",
@@ -65,11 +66,12 @@ class RequestManager(commands.Cog):
         await embed_message.add_reaction(config.greenTick)
         await embed_message.add_reaction(config.redTick)
 
-        utils.guildKeySet(ctx, f'requests.{ctx.message.id}', { 
-            'user': ctx.author.id, 
+        utils.guildKeySet(ctx, f'requests.{embed_message.id}', { 
+            'channel': embed_message.channel.id,
+            'created': datetime.datetime.utcnow().timestamp(),
             'role': role.id, 
             'status': 'pending',
-            'embed': (embed_message.channel.id, embed_message.id)
+            'user': ctx.author.id, 
         })
         return await utils.cmdSuccess(ctx, f'Your request for "{role.name}" has been submitted.', delete_after = delete)
 
@@ -78,38 +80,49 @@ class RequestManager(commands.Cog):
 
         requests = list(filter(
             lambda e: e[1]['user'] == ctx.author.id and e[1]['role'] == role.id, doc['requests'].items()))
-        key, val = requests[-1] if requests else (None, None)
+        request = requests[-1] if requests else (None, None)
 
-        if not val or val['status'] != 'pending':
+        if not request[1] or request[1]['status'] != 'pending':
             return await utils.cmdFail(ctx, f'You do not have a request pending for the role "{role.name}".')
 
-        try:
-            embed_message = await ctx.guild.get_channel(val['embed'][0]).fetch_message(val['embed'][1])
-
-            embed = embed_message.embeds[0]
-            embed.colour = discord.Colour.darker_grey()
-            embed.timestamp = datetime.datetime.utcnow()
-            embed.set_footer(text='Request cancelled')
-            embed.remove_field(0)
-            embed.add_field(name='Status', value='Cancelled by user.')
-            
-            await embed_message.edit(embed=embed)
-            await embed_message.clear_reactions()
-        except:
-            pass
-        
-        utils.guildKeySet(ctx, f'requests.{key}.status', 'cancelled') 
+        await self.request_update(ctx, request, 'cancelled')
 
         return await utils.cmdSuccess(ctx, f'Your request for "{role.name}" has been cancelled.')
 
+    async def request_update(self, ctx, req, status):
+        statuses = {
+            'cancelled': {
+                'colour': discord.Colour.darker_grey(),
+                'footer': 'Request cancelled',
+                'status': 'Cancelled by user.'
+            }
+        }
 
-    # Approve and deny methods, called from reactions listener
-    async def request_approve(self, ctx):
-        return await ctx.send('mod approve request') # TODO
+        message_id, request = req
+        layout = statuses[status]
 
-    async def request_deny(self, ctx):
-        return await ctx.send('mod deny request') # TODO
+        if status == 'expired':
+            utils.guildKeyDel(ctx, f'requests.{message_id}') 
+        else:
+            utils.guildKeySet(ctx, f'requests.{message_id}.status', status) 
 
+        try:
+            embed_message = await ctx.guild.get_channel(request['channel']).fetch_message(message_id)
+
+            embed = embed_message.embeds[0]
+            embed.colour = layout['colour']
+            embed.timestamp = datetime.datetime.utcnow()
+            embed.set_footer(text=layout['footer'])
+            embed.remove_field(0)
+            embed.add_field(name='Status', value=layout['status'])
+            
+            await embed_message.edit(embed=embed)
+            await embed_message.clear_reactions()
+
+            return embed_message
+        except:
+            return None
+            
 
     @commands.group(name='requests', invoke_without_command=True, case_insensitive=True, aliases=['request'])
     @commands.guild_only()
