@@ -124,7 +124,7 @@ class RequestManager(commands.Cog):
         if not request[1] or request[1]['status'] != 'pending':
             return await utils.cmdFail(ctx, f'You do not have a request pending for the role "{role.name}".')
 
-        await self.request_update(ctx.guild, request[0], request[1], 'cancelled', ctx.author, role)
+        await self.request_update(ctx.guild, request[0], request[1], 'cancelled')
         return await utils.cmdSuccess(ctx, f'Your request for "{role.name}" has been cancelled.')
 
     async def request_update(self, guild, message_id, request, status, mod = None):
