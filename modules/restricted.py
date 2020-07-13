@@ -201,7 +201,7 @@ class RequestManager(commands.Cog):
         return await ctx.send_help('request')
 
     @_requests.command(name='disable')
-    @commands.has_guild_permissions(manage_roles=True)
+    @commands.has_guild_permissions(manage_guild=True)
     @utils.guild_in_db()
     async def _requests_disable(self, ctx):
         '''Disables requests for the guild'''
@@ -214,7 +214,7 @@ class RequestManager(commands.Cog):
         return await utils.cmdSuccess(ctx, f'Requests are now disabled for this guild.')
 
     @_requests.command(name='channel')
-    @commands.has_guild_permissions(manage_roles=True)
+    @commands.has_guild_permissions(manage_guild=True)
     @utils.guild_in_db()
     async def _requests_channel(self, ctx, channel: typing.Optional[discord.TextChannel]):
         '''Gets/sets the channel that requests will be posted in'''
@@ -234,9 +234,9 @@ class RequestManager(commands.Cog):
         return await utils.cmdSuccess(ctx, f'{msg_prefix} now {channel}.')
 
     @_requests.command(name='hidejoins', aliases=['hidejoin'])
-    @commands.has_guild_permissions(manage_roles=True)
+    @commands.has_guild_permissions(manage_guild=True)
     @utils.guild_in_db()
-    async def _requests_quiet(self, ctx, setting: typing.Optional[bool]):
+    async def _requests_hidejoins(self, ctx, setting: typing.Optional[bool]):
         '''Shows/sets automatic deletion of join commands for restricted roles'''
         doc = utils.getGuildDoc(ctx.bot, ctx.guild)
         current = doc['requests_opts']['hidejoins']
