@@ -27,8 +27,8 @@ class RoleRequest(commands.Cog):
         doc = utils.getGuildDoc(ctx.bot, ctx.guild)
 
         if commands.has_permissions(manage_roles=True)(ctx) and not listAll:
-            footer = 'Use the list all" command to list all server roles.' 
-            errMsgExtra = '(Use the `list all` command to list all server roles.)'
+            footer = f'Use the "{ctx.prefix}list all" command to list all server roles.' 
+            errMsgExtra = f'(Use the `{ctx.prefix}list all` command to list all server roles.)'
         else:
             footer = ''
             errMsgExtra = ''
