@@ -107,74 +107,62 @@ class RoleRequest(commands.Cog):
         await ctx.author.remove_roles(role, reason='User left role via command')
         return await utils.cmdSuccess(ctx, f'You left the role "{role.name}".')
 
-    @commands.group(name='roles', invoke_without_command=True, case_insensitive=True, aliases=['role'])
+    @commands.command(name='role', usage='<role> [add|open|limit(ed)|remove]')
     @commands.guild_only()
-    async def _role(self, ctx):
-        '''Manages the server's requestable roles'''
-        return await ctx.send_help('roles')
-
-    @_role.command(name='add', usage='<role> [open|limited]')
     @commands.has_guild_permissions(manage_roles=True)
     @utils.guild_in_db()
-    async def _role_add(self, ctx, role: discord.Role, roletype: typing.Optional[str] = 'open'):
-        '''Adds a role to the requestable roles'''
-        doc = utils.getGuildDoc(ctx.bot, ctx.guild)
+    async def _role(self, ctx, role: discord.Role, option: str):
+        '''Adds, modifies, or removes a requestable role
         
-        types = {
-            'open': 'open',
-            'limited': 'limited',
-            'o': 'open',
-            'l': 'limited'
+        Adds or removes a role from the server's requestable roles or modifies an existing requestable roles type.'''
+        doc = utils.getGuildDoc(ctx.bot, ctx.guild)
+
+        options = {
+            'open': ['open', 'o'],
+            'limited': ['limited', 'limit', 'l'],
+
+            'remove': ['delete', 'del', 'd', 'remove', 'rem', 'r'],
+            'add': ['add', 'a'] # Option resolves to 'open' but only for new roles.
         }
 
-        if doc and str(role.id) in doc['roles']:
-            return await utils.cmdFail(ctx, f'"{role.name}" is already a requestable role.') 
+        resolved_option = None
+        for key, val in options.items():
+            if option in val:
+                resolved_option = key
 
-        if role.is_default():
-            return await utils.cmdFail(ctx, f'"{role.name}" is not a valid role.') 
+        if not resolved_option:
+            return await utils.cmdFail(ctx, f'"{option}" is not a valid option.') 
 
-        if not roletype.lower() in types:
-            return await utils.cmdFail(ctx, f'"{roletype}" is not a valid type.') 
-        
-        resolved_type = types[roletype.lower()]
-        utils.guildKeySet(ctx.bot, ctx.guild, f'roles.{role.id}', { 'type': resolved_type })
-        return await utils.cmdSuccess(ctx, f'"{role.name}" added as a requestable {resolved_type} role.')
-         
-    @_role.command(name='remove')
-    @commands.has_guild_permissions(manage_roles=True)
-    async def _role_remove(self, ctx, role: discord.Role):
-        '''Removes role from the requestable roles'''
-        doc = utils.getGuildDoc(ctx.bot, ctx.guild)
+        if role.is_default(): # @everyone role
+            return await utils.cmdFail(ctx, f'"{role.name}" is not a valid role.')
 
-        if not (doc and str(role.id) in doc['roles']):
-           return await utils.cmdFail(ctx, f'"{role.name}" is not a requestable role.') 
+        role_is_requestable = (doc and str(role.id) in doc['roles'])
 
-        utils.guildKeyDel(ctx.bot, ctx.guild, f'roles.{role.id}')
-        return await utils.cmdSuccess(ctx, f'"{role.name}" removed as a requestable role.')
+        # Remove role
+        if resolved_option == "remove":
+            if not role_is_requestable:
+                return await utils.cmdFail(ctx, f'"{role.name}" is not a requestable role.') 
 
-    @_role.command(name='limit')
-    @commands.has_guild_permissions(manage_roles=True)
-    async def _role_limit(self, ctx, role: discord.Role):
-        '''Makes a open role limited'''
-        return await self._role_update_role(ctx, role, 'limited')
+            utils.guildKeyDel(ctx.bot, ctx.guild, f'roles.{role.id}')
+            return await utils.cmdSuccess(ctx, f'"{role.name}" has been removed as a requestable role.')
 
-    @_role.command(name='open', aliases=['unlimit'])
-    @commands.has_guild_permissions(manage_roles=True)
-    async def _role_open(self, ctx, role: discord.Role):
-        '''Makes a limited role open'''
-        return await self._role_update_role(ctx, role, 'open')
+        # Modify role type
+        if role_is_requestable:
+            if resolved_option == 'add':
+                return await utils.cmdFail(ctx, f'"{role.name}" is already a requestable role.') 
 
-    async def _role_update_role(self, ctx, role: discord.Role, roletype):
-        doc = utils.getGuildDoc(ctx.bot, ctx.guild)
+            if doc['roles'][str(role.id)]['type'] == resolved_option:
+                return await utils.cmdFail(ctx, f'"{role.name}" is already a {resolved_option} requestable role.') 
 
-        if not (doc and str(role.id) in doc['roles']):
-           return await utils.cmdFail(ctx, f'"{role.name}" is not a requestable role.') 
+            utils.guildKeySet(ctx.bot, ctx.guild, f'roles.{role.id}.type', resolved_option)
+            return await utils.cmdSuccess(ctx, f'"{role.name}" is now a {resolved_option} requestable role.')
 
-        if doc['roles'][str(role.id)]['type'] == roletype:
-           return await utils.cmdFail(ctx, f'"{role.name}" is already a {roletype} requestable role.') 
+        # Add role
+        else:
+            if resolved_option == 'add': resolved_option = 'open'
 
-        utils.guildKeySet(ctx.bot, ctx.guild, f'roles.{role.id}.type', roletype)
-        return await utils.cmdSuccess(ctx, f'"{role.name}" is now a {roletype} requestable role.')
+            utils.guildKeySet(ctx.bot, ctx.guild, f'roles.{role.id}', { 'type': resolved_option })
+            return await utils.cmdSuccess(ctx, f'"{role.name}" has been added as a requestable {resolved_option} role.')
 
 def setup(bot):
     bot.add_cog(RoleRequest(bot))
