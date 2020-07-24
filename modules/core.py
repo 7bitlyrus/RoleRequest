@@ -85,7 +85,7 @@ class RoleRequest(commands.Cog):
         if doc['roles'][str(role.id)]['type'] == 'restricted':
             return await self.bot.get_cog('RequestManager').request_create(ctx, role)
 
-        await ctx.author.add_roles(role)
+        await ctx.author.add_roles(role, reason='User joined role via command')
         return await utils.cmdSuccess(ctx, f'You have joined the role "{role.name}".')
 
     @commands.command(name='leave')
@@ -104,7 +104,7 @@ class RoleRequest(commands.Cog):
             
             return await utils.cmdFail(ctx, f'You do not have the role "{role.name}".') 
 
-        await ctx.author.remove_roles(role)
+        await ctx.author.remove_roles(role, reason='User left role via command')
         return await utils.cmdSuccess(ctx, f'You left the role "{role.name}".')
 
     @commands.group(name='roles', invoke_without_command=True, case_insensitive=True, aliases=['role'])

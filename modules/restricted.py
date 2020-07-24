@@ -158,7 +158,7 @@ class RequestManager(commands.Cog):
         role = guild.get_role(request['role'])
         layout = statuses[status]
 
-        if status == 'approved': await member.add_roles(role)
+        if status == 'approved': await member.add_roles(role, reason='User role request approved')
 
         if status == 'expired':
             utils.guildKeyDel(self.bot, guild, f'requests.{message_id}') 
