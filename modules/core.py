@@ -123,7 +123,7 @@ class RoleRequest(commands.Cog):
         types = {
             'open': 'open',
             'limited': 'limited',
-            'o': 'openn',
+            'o': 'open',
             'l': 'limited'
         }
 
