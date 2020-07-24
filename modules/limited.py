@@ -242,14 +242,16 @@ class RequestManager(commands.Cog):
         current = doc['requests_opts']['hidejoins']
         msg_prefix = 'Automatic deletion of join commands for limited roles is'
 
+        def setting_str(setting): return "enabled" if setting else "disabled"
+
         if setting is None:
-            return await ctx.send(f'{msg_prefix} currently **{"enabled" if current else "disabled"}**.')
+            return await ctx.send(f'{msg_prefix} currently **{setting_str(current)}**.')
 
         if setting == current:
-            return await utils.cmdFail(ctx, f'{msg_prefix} already **{"enabled" if current else "disabled"}**.')
+            return await utils.cmdFail(ctx, f'{msg_prefix} already **{setting_str(current)}**.')
 
         utils.guildKeySet(ctx.bot, ctx.guild, f'requests_opts.hidejoins', setting)
-        return await utils.cmdSuccess(ctx, f'{msg_prefix} now **{"enabled" if setting else "disabled"}**.')
+        return await utils.cmdSuccess(ctx, f'{msg_prefix} now **{setting_str(setting)}**.')
             
 def setup(bot):
     bot.add_cog(RequestManager(bot))
