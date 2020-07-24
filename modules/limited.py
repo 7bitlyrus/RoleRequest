@@ -20,7 +20,7 @@ class RequestManager(commands.Cog):
 
     @tasks.loop(minutes=10, reconnect=False)
     async def expiry_check(self):
-        logging.info('[Restricted] Checking for expired requests...')
+        logging.info('[Limited] Checking for expired requests...')
 
         expire_before = (datetime.datetime.utcnow() - datetime.timedelta(hours=24)).timestamp() # 24 hours ago
 
@@ -30,7 +30,7 @@ class RequestManager(commands.Cog):
                 
                 guild = await self.bot.fetch_guild(server['id'])
                 await self.request_update(guild, message_id, request, 'expired')
-                logging.info(f'[Restricted] Expired request {message_id}')
+                logging.info(f'[Limited] Expired request {message_id}')
 
 
     @expiry_check.before_loop
@@ -72,7 +72,7 @@ class RequestManager(commands.Cog):
             delete = None
 
         if not channel:
-            return await utils.cmdFail(ctx, f'Restricted role requests are currently disabled for this guild.', 
+            return await utils.cmdFail(ctx, f'Limited role requests are currently disabled for this guild.', 
                 delete_after = delete)
 
         existing_requests = list(filter(lambda e: e['role'] == role.id, users_requests))
@@ -92,7 +92,7 @@ class RequestManager(commands.Cog):
                delete_after = delete)
 
         embed = discord.Embed(
-            title="Restricted Role Request",
+            title="Limited Role Request",
             description=f'<@{ctx.message.author.id}> requested the <@&{role.id}> role.',
             color = discord.Colour.blurple(),
             timestamp = datetime.datetime.utcnow() + datetime.timedelta(hours=24))
@@ -194,7 +194,7 @@ class RequestManager(commands.Cog):
     @commands.guild_only()
     async def _requests(self, ctx):
         '''
-        Manages settings for restricted role requests
+        Manages settings for limited role requests
         
         To make or cancel your own role request, use the 'join' or 'leave' commands.
         '''
@@ -237,10 +237,10 @@ class RequestManager(commands.Cog):
     @commands.has_guild_permissions(manage_guild=True)
     @utils.guild_in_db()
     async def _requests_hidejoins(self, ctx, setting: typing.Optional[bool]):
-        '''Shows/sets automatic deletion of join commands for restricted roles'''
+        '''Shows/sets automatic deletion of join commands for limited roles'''
         doc = utils.getGuildDoc(ctx.bot, ctx.guild)
         current = doc['requests_opts']['hidejoins']
-        msg_prefix = 'Automatic deletion of join commands for restricted roles is'
+        msg_prefix = 'Automatic deletion of join commands for limited roles is'
 
         if setting is None:
             return await ctx.send(f'{msg_prefix} currently **{"enabled" if current else "disabled"}**.')
@@ -253,8 +253,8 @@ class RequestManager(commands.Cog):
             
 def setup(bot):
     bot.add_cog(RequestManager(bot))
-    logging.info('[Extension] Restricted module loaded')
+    logging.info('[Extension] Limited module loaded')
 
 def teardown(bot):
     bot.remove_cog('RequestManager')
-    logging.info('[Extension] Restricted module unloaded')
+    logging.info('[Extension] Limited module unloaded')

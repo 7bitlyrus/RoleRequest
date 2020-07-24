@@ -72,7 +72,7 @@ class RoleRequest(commands.Cog):
         '''
         Joins or requests a requestable role
         
-        If the role is a public role, it will be joined. If the role is a restricted role, a request is submitted.
+        If the role is a open role, it will be joined. If the role is a limited role, a request is submitted.
         '''
         doc = utils.getGuildDoc(ctx.bot, ctx.guild)
 
@@ -82,7 +82,7 @@ class RoleRequest(commands.Cog):
         if role in ctx.author.roles:
             return await utils.cmdFail(ctx, f'You already have the role "{role.name}".') 
 
-        if doc['roles'][str(role.id)]['type'] == 'restricted':
+        if doc['roles'][str(role.id)]['type'] == 'limited':
             return await self.bot.get_cog('RequestManager').request_create(ctx, role)
 
         await ctx.author.add_roles(role, reason='User joined role via command')
@@ -99,7 +99,7 @@ class RoleRequest(commands.Cog):
            return await utils.cmdFail(ctx, f'"{role.name}" is not a requestable role.') 
 
         if not role in ctx.author.roles:
-            if doc['roles'][str(role.id)]['type'] == 'restricted':
+            if doc['roles'][str(role.id)]['type'] == 'limited':
                 return await self.bot.get_cog('RequestManager').request_cancel(ctx, role)
             
             return await utils.cmdFail(ctx, f'You do not have the role "{role.name}".') 
@@ -113,19 +113,18 @@ class RoleRequest(commands.Cog):
         '''Manages the server's requestable roles'''
         return await ctx.send_help('roles')
 
-    @_role.command(name='add', usage='<role> [public|restricted]')
+    @_role.command(name='add', usage='<role> [open|limited]')
     @commands.has_guild_permissions(manage_roles=True)
     @utils.guild_in_db()
-    async def _role_add(self, ctx, role: discord.Role, roletype: typing.Optional[str] = 'public'):
+    async def _role_add(self, ctx, role: discord.Role, roletype: typing.Optional[str] = 'open'):
         '''Adds a role to the requestable roles'''
         doc = utils.getGuildDoc(ctx.bot, ctx.guild)
         
         types = {
-            'public': 'public',
-            'restricted': 'restricted',
-            'restrict': 'restricted',
-            'p': 'public',
-            'r': 'restricted'
+            'open': 'open',
+            'limited': 'limited',
+            'o': 'openn',
+            'l': 'limited'
         }
 
         if doc and str(role.id) in doc['roles']:
@@ -153,17 +152,17 @@ class RoleRequest(commands.Cog):
         utils.guildKeyDel(ctx.bot, ctx.guild, f'roles.{role.id}')
         return await utils.cmdSuccess(ctx, f'"{role.name}" removed as a requestable role.')
 
-    @_role.command(name='restrict')
+    @_role.command(name='limit')
     @commands.has_guild_permissions(manage_roles=True)
-    async def _role_restict(self, ctx, role: discord.Role):
-        '''Makes a public role restricted'''
-        return await self._role_update_role(ctx, role, 'restricted')
+    async def _role_limit(self, ctx, role: discord.Role):
+        '''Makes a open role limited'''
+        return await self._role_update_role(ctx, role, 'limited')
 
-    @_role.command(name='public', aliases=['unrestrict'])
+    @_role.command(name='open', aliases=['unlimit'])
     @commands.has_guild_permissions(manage_roles=True)
-    async def _role_public(self, ctx, role: discord.Role):
-        '''Makes a restricted role public'''
-        return await self._role_update_role(ctx, role, 'public')
+    async def _role_open(self, ctx, role: discord.Role):
+        '''Makes a limited role open'''
+        return await self._role_update_role(ctx, role, 'open')
 
     async def _role_update_role(self, ctx, role: discord.Role, roletype):
         doc = utils.getGuildDoc(ctx.bot, ctx.guild)

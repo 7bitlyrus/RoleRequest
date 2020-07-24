@@ -35,6 +35,6 @@ class Core(commands.Cog):
 bot.add_cog(Core(bot))
 bot.load_extension('jishaku')
 bot.load_extension('modules.core')
-bot.load_extension('modules.restricted')
+bot.load_extension('modules.limited')
 bot.run(config.token)
 # TODO: Add reaction roles module
