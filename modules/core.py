@@ -107,11 +107,11 @@ class RoleRequest(commands.Cog):
         await ctx.author.remove_roles(role, reason='User left role via command')
         return await utils.cmdSuccess(ctx, f'You left the role "{role.name}".')
 
-    @commands.command(name='role', usage='<role> [add|open|limit(ed)|remove]')
+    @commands.command(name='role', usage='<role> (add|open|limit(ed)|remove)')
     @commands.guild_only()
     @commands.has_guild_permissions(manage_roles=True)
     @utils.guild_in_db()
-    async def _role(self, ctx, role: discord.Role, option: str):
+    async def _role(self, ctx, role: discord.Role, option: typing.Optional[str]):
         '''Adds, modifies, or removes a requestable role
         
         Adds or removes a role from the server's requestable roles or modifies an existing requestable roles type.'''
@@ -130,28 +130,45 @@ class RoleRequest(commands.Cog):
             if option in val:
                 resolved_option = key
 
-        if not resolved_option:
+        if option and not resolved_option:
             return await utils.cmdFail(ctx, f'"{option}" is not a valid option.') 
 
-        if role.is_default(): # @everyone role
+        if role.is_default() or role.managed: # @everyone role or managed
             return await utils.cmdFail(ctx, f'"{role.name}" is not a valid role.')
 
-        role_is_requestable = (doc and str(role.id) in doc['roles'])
+        role_request_type = None if not (doc and str(role.id) in doc['roles']) else doc['roles'][str(role.id)]['type']
+
+        # Role info
+        if resolved_option is None:
+            embed = discord.Embed(
+                title="Role Info",
+                description=f'<@&{role.id}>\n' + 
+                f'**Color:** {"None" if role.color == discord.Colour.default() else role.color}\n' + 
+                f'**Hoisted:** {"Yes" if role.hoist else "No"}\n' +
+                f'**Mentionable:** {"Yes" if role.mentionable else "No"}\n' +
+                '**Requestable:** ' + ('No' if not role_request_type else f'Yes, {role_request_type.title()}'),
+                color = discord.Embed.Empty if role.color == discord.Colour.default() else role.colour
+            )
+
+            if commands.has_permissions(manage_roles=True)(ctx):
+                    embed.set_footer(text=f'See "{ctx.prefix}help role" for valid subcommands.')
+
+            return await ctx.send(embed=embed)
 
         # Remove role
         if resolved_option == "remove":
-            if not role_is_requestable:
+            if not role_request_type:
                 return await utils.cmdFail(ctx, f'"{role.name}" is not a requestable role.') 
 
             utils.guildKeyDel(ctx.bot, ctx.guild, f'roles.{role.id}')
             return await utils.cmdSuccess(ctx, f'"{role.name}" has been removed as a requestable role.')
 
         # Modify role type
-        if role_is_requestable:
+        if role_request_type:
             if resolved_option == 'add':
                 return await utils.cmdFail(ctx, f'"{role.name}" is already a requestable role.') 
 
-            if doc['roles'][str(role.id)]['type'] == resolved_option:
+            if role_request_type == resolved_option:
                 return await utils.cmdFail(ctx, f'"{role.name}" is already a {resolved_option} requestable role.') 
 
             utils.guildKeySet(ctx.bot, ctx.guild, f'roles.{role.id}.type', resolved_option)
