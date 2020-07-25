@@ -15,55 +15,39 @@ class RoleRequest(commands.Cog):
     @commands.guild_only()
     async def _list(self, ctx):
         '''Lists all requestable roles'''
-        return await self._list_helper(ctx, False)
+        doc = utils.getGuildDoc(ctx.bot, ctx.guild)
+        has_manage_roles = commands.has_permissions(manage_roles=True)(ctx)
+
+        if not (doc and len(doc['roles'])):
+            return await utils.cmdFail(ctx, f'This server does not have any requestable roles.' +
+            f' (Use the `{ctx.prefix}list all` command to list all server roles.)' if has_manage_roles else '')
+
+        roles = list(filter(lambda r: str(r.id) in doc['roles'], ctx.guild.roles)) # Roles in requestable roles
+
+        await self._list_send_embed(ctx, 'Requestable Roles', roles,
+        footer=f'Use the "{ctx.prefix}list all" command to list all server roles.' if has_manage_roles else None)
 
     @_list.command(name='all')
     @commands.has_guild_permissions(manage_roles=True)
     async def _list_all(self, ctx):
         '''Lists all roles in the server'''
-        return await self._list_helper(ctx, True)
+        await self._list_send_embed(ctx, 'All Roles', ctx.guild.roles)
 
-    async def _list_helper(self, ctx, listAll):
+    async def _list_send_embed(self, ctx, title, roles, *, footer=None):
         doc = utils.getGuildDoc(ctx.bot, ctx.guild)
-
-        if commands.has_permissions(manage_roles=True)(ctx) and not listAll:
-            footer = f'Use the "{ctx.prefix}list all" command to list all server roles.' 
-            errMsgExtra = f'(Use the `{ctx.prefix}list all` command to list all server roles.)'
-        else:
-            footer = ''
-            errMsgExtra = ''
-
-        if not listAll: 
-            if not ((doc and len(doc['roles']))):
-                return await utils.cmdFail(ctx, f'This server does not have any requestable roles. {errMsgExtra}')
-
-            roles = list(filter(lambda r: str(r.id) in doc['roles'], ctx.guild.roles)) # Roles in requestable roles
-        else: 
-            roles = ctx.guild.roles
-
         roles = list(filter(lambda r: not r.is_default(), reversed(roles))) # Reversed without @everyone role
 
-        # Make list from roles: formatted list of items and raw string of items
-        def format_list(*, raw=False):
-            def predicate(role):
-                if doc and str(role.id) in doc['roles']: 
-                    typeName = doc['roles'][str(role.id)]['type'].capitalize()
-                    typeStr = f' - {typeName}' if raw else f' *{typeName}*'
-                else:
-                    typeStr = ''
+        role_list = []
+        raw_list = []
 
-                if raw:
-                    colorStr = '' if role.color == discord.Colour.default() else f' [{role.color}]'
-                    return f'{role.name}{ colorStr} ({role.id}){ typeStr}'
-                else:
-                    return f'<@&{role.id}> (`{role.id}`){ typeStr}'
-            return predicate
-        
-        title = 'All Roles' if listAll else 'Requestable Roles'
-        lst = list(map(format_list(), roles))
-        raw = '\r\n'.join(list(map(format_list(raw=True), roles)))
+        for role in roles:
+            typeStr = doc['roles'][str(role.id)]['type'].title() if (doc and str(role.id) in doc['roles']) else None
+            colorStr = '' if role.color == discord.Colour.default() else f' [{role.color}]'
 
-        await utils.sendListEmbed(ctx, title, lst, raw_override=raw, footer=footer)
+            role_list.append(f'<@&{role.id}> (`{role.id}`)' + (f' **{typeStr}**' if typeStr else ''))
+            raw_list.append(f'{role.name}{colorStr} ({role.id})' + f' {typeStr}' if typeStr else '')
+
+        await utils.sendListEmbed(ctx, title, role_list, raw_override='\r\n'.join(raw_list), footer=footer)
 
     @commands.command(name='join')
     @commands.guild_only()
@@ -142,7 +126,7 @@ class RoleRequest(commands.Cog):
         if resolved_option is None:
             embed = discord.Embed(
                 title="Role Info",
-                description=f'<@&{role.id}>\n' + 
+                description=f'<@&{role.id}> (`{role.id}`)\n' + 
                 f'**Color:** {"None" if role.color == discord.Colour.default() else role.color}\n' + 
                 f'**Hoisted:** {"Yes" if role.hoist else "No"}\n' +
                 f'**Mentionable:** {"Yes" if role.mentionable else "No"}\n' +
