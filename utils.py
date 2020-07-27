@@ -35,7 +35,7 @@ def getGitInfo(commit = None, git_repo_url = None):
         return (False, [])
 
     if commit != commit_hash: # If on new commit since bot startup (specified)
-        flags.append('Unreloaded')
+        flags.append('Pending')
 
     if modified: # Files modified since commit
         flags.append('Changed')
