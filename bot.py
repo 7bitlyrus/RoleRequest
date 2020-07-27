@@ -5,6 +5,7 @@ from discord.ext import commands
 from tinydb import TinyDB
 
 import config
+import datetime
 import utils
 
 LOG_FORMAT = '[%(asctime)s] [%(levelname)s]: %(message)s'
@@ -19,6 +20,8 @@ class Core(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         bot.db = db
+        (bot.git_hash, _) = utils.getGitInfo()
+        bot.start_time = datetime.datetime.utcnow()
 
     @commands.Cog.listener()
     async def on_ready(self):

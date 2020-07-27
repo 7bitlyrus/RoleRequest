@@ -1,5 +1,7 @@
 import io
 import logging
+import re
+import subprocess
 
 import dict_deep
 import discord
@@ -9,6 +11,46 @@ from tinydb import Query
 import config
 
 Servers = Query()
+
+async def cmdSuccess(ctx, text, *, delete_after = None):
+    return await ctx.send(f'{config.greenTick} {text}', delete_after = delete_after)
+
+async def cmdFail(ctx, text, *, delete_after = None):
+    return await ctx.send(f'{config.redTick} {text}', delete_after = delete_after)
+
+def getGitInfo(commit = None, git_repo_url = None):
+    GIT_REPO_REGEX = r'(?:https?://)?(?:\w+@)?([^:/\s]+)[:|/]([^/\s]+)/([^/.\s]+)(?:.git)?'
+    flags = []
+
+    try:
+        commit_hash = subprocess.check_output(['git','rev-parse','HEAD']).decode('ascii').strip()
+
+        if commit is None: # We are initing commit info on bot startup, we don't need anything but commit hash
+            return (commit_hash, [])
+
+        origin_url = subprocess.check_output(['git','config','--get','remote.origin.url']).decode('ascii').strip()
+        modified = subprocess.call(['git','diff-index','--quiet','HEAD']) != 0
+    except Exception as e:
+        logging.warn(e)
+        return (False, [])
+
+    if commit != commit_hash: # If on new commit since bot startup (specified)
+        flags.append('Hot Reload')
+
+    if modified: # Files modified since commit
+        flags.append('Modified')
+
+    if git_repo_url:
+        base_url_groups = re.match(GIT_REPO_REGEX, git_repo_url).groups()
+        origin_url_groups = re.match(GIT_REPO_REGEX, origin_url).groups()
+
+        if base_url_groups != origin_url_groups: # If git repo doesn't match expected one
+            print(base_url_groups, origin_url_groups)
+            flags.append('Fork')
+    else: # Assume fork if we are not given a repo 
+        flags.append('Fork')
+
+    return (commit_hash, flags)
 
 def guild_in_db():
     async def predicate(ctx):
@@ -46,12 +88,6 @@ def guildKeyDel(bot, guild, key):
         return transform
 
     return bot.db.update(predicate(key), Servers.id == guild.id)
-
-async def cmdSuccess(ctx, text, *, delete_after = None):
-    return await ctx.send(f'{config.greenTick} {text}', delete_after = delete_after)
-
-async def cmdFail(ctx, text, *, delete_after = None):
-    return await ctx.send(f'{config.redTick} {text}', delete_after = delete_after)
 
 async def sendListEmbed(ctx, title, lst, *, raw_override=None, footer=None):
     # Overall - 128 - footer - title, description, field values
