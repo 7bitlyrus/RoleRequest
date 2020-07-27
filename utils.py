@@ -35,17 +35,16 @@ def getGitInfo(commit = None, git_repo_url = None):
         return (False, [])
 
     if commit != commit_hash: # If on new commit since bot startup (specified)
-        flags.append('Hot Reload')
+        flags.append('Unreloaded')
 
     if modified: # Files modified since commit
-        flags.append('Modified')
+        flags.append('Changed')
 
     if git_repo_url:
         base_url_groups = re.match(GIT_REPO_REGEX, git_repo_url).groups()
         origin_url_groups = re.match(GIT_REPO_REGEX, origin_url).groups()
 
         if base_url_groups != origin_url_groups: # If git repo doesn't match expected one
-            print(base_url_groups, origin_url_groups)
             flags.append('Fork')
     else: # Assume fork if we are not given a repo 
         flags.append('Fork')
