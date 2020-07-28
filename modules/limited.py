@@ -8,7 +8,7 @@ from discord.ext import commands, tasks
 import config
 import utils
 
-class RequestManager(commands.Cog):
+class LimitedRequests(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db = bot.db
@@ -242,7 +242,7 @@ class RequestManager(commands.Cog):
         current = doc['requests_opts']['hidejoins']
         msg_prefix = 'Automatic deletion of join commands for limited roles is'
 
-        def setting_str(setting): return "enabled" if setting else "disabled"
+        setting_str = lambda setting: "enabled" if setting else "disabled"
 
         if setting is None:
             return await ctx.send(f'{msg_prefix} currently **{setting_str(current)}**.')
@@ -254,9 +254,9 @@ class RequestManager(commands.Cog):
         return await utils.cmdSuccess(ctx, f'{msg_prefix} now **{setting_str(setting)}**.')
             
 def setup(bot):
-    bot.add_cog(RequestManager(bot))
+    bot.add_cog(LimitedRequests(bot))
     logging.info('[Extension] Limited module loaded')
 
 def teardown(bot):
-    bot.remove_cog('RequestManager')
+    bot.remove_cog('LimitedRequests')
     logging.info('[Extension] Limited module unloaded')
