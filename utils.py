@@ -9,6 +9,7 @@ from discord.ext import commands
 from tinydb import Query
 
 import config
+from consts import *
 
 Servers = Query()
 
@@ -19,11 +20,6 @@ async def cmdFail(ctx, text, *, delete_after = None):
     return await ctx.send(f'{config.redTick} {text}', delete_after = delete_after)
 
 def getGitInfo(ref_commit = None):
-    GIT_REPO_URL = 'https://github.com/7bitlyrus/rolerequest'
-    GIT_COMMIT_BASE = GIT_REPO_URL + '/commit/'
-    GIT_COMPARE_BASE = GIT_REPO_URL + '/compare/'
-    GIT_REPO_REGEX = r'(?:https?://)?(?:\w+@)?([^:/\s]+)[:|/]([^/\s]+)/([^/.\s]+)(?:.git)?'
-
     try:
         commit_hash = subprocess.check_output(['git','rev-parse','HEAD']).decode('ascii').strip()
         origin_url = subprocess.check_output(['git','config','--get','remote.origin.url']).decode('ascii').strip()
@@ -32,8 +28,8 @@ def getGitInfo(ref_commit = None):
         logging.warn(e)
         return False
 
-    if ref_commit is None: # We are initing commit info on bot startup, we only want the commit hash
-        return commit_hash
+    if ref_commit is None: # We are initing commit info on bot startup, we only want the commit hash.
+        return (commit_hash, '', None)
 
     fork = re.match(GIT_REPO_REGEX, GIT_REPO_URL).groups() != re.match(GIT_REPO_REGEX, origin_url).groups()
     multiple = ref_commit != commit_hash
@@ -44,7 +40,7 @@ def getGitInfo(ref_commit = None):
 
     version = f'Commit{s} `{commit_short}` (Fork)' if fork else f'Commit{s} [`{commit_short}`]({commit_url})'
 
-    return version
+    return (commit_hash, version, fork)
 
 def guild_in_db():
     async def predicate(ctx):
@@ -86,7 +82,8 @@ def guildKeyDel(bot, guild, key):
 async def sendListEmbed(ctx, title, lst, *, raw_override=None, footer=None):
     # Overall - 128 - footer - title, description, field values
     footer_len = 0 if not footer else len(footer)
-    LEN_LIMITS = (6000 - 128 - len(title) - footer_len, 2048, 1024) 
+    overall_limit = EMBED_LENGTH_LIMITS['overall'] - len(title) - footer_len
+    
 
     lengths = list(map(lambda x: len(x), lst))
 
@@ -97,7 +94,7 @@ async def sendListEmbed(ctx, title, lst, *, raw_override=None, footer=None):
     description = ''
     for i in range(len(lst)):
         # Description < Overall, so we won't have to worry about hitting it yet; + 1 for newline
-        if len(description) + lengths[i] + 1 > LEN_LIMITS[1]: break 
+        if len(description) + lengths[i] + 1 > EMBED_LENGTH_LIMITS['description']: break 
 
         description += lst[i] + '\n'
         lastItem = i
@@ -108,12 +105,12 @@ async def sendListEmbed(ctx, title, lst, *, raw_override=None, footer=None):
     fields = []
     for f in range(24): # 24 Fields, reserve last one for maximum length link
         if lastItem + 1 == len(lst): break
-        if lenOverall + lengths[lastItem+1] + 1 > LEN_LIMITS[0]: break
+        if lenOverall + lengths[lastItem+1] + 1 > overall_limit: break
 
         fields.append('')
         for i in range(lastItem+1, len(lst)):
-            if lenOverall + len(fields[f]) + lengths[i] + 1 > LEN_LIMITS[0]: break
-            if len(fields[f]) + lengths[i] + 1 > LEN_LIMITS[2]: break
+            if lenOverall + len(fields[f]) + lengths[i] + 1 > overall_limit: break
+            if len(fields[f]) + lengths[i] + 1 > EMBED_LENGTH_LIMITS['field_values']: break
 
             fields[f] += lst[i] + '\n'
             lastItem = i

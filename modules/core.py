@@ -5,6 +5,7 @@ import discord
 from discord import version_info
 from discord.ext import commands
 
+from consts import *
 import utils
 
 class RoleRequest(commands.Cog):
@@ -169,15 +170,15 @@ class RoleRequest(commands.Cog):
     @commands.command(name='about')
     async def _about(self, ctx):
         """Print information about this bot instance"""
-        ISSUE_TRACKER = 'https://github.com/7bitlyrus/rolerequest/issues'
-        TITLE = 'RoleRequest by 7bitlyrus'
-        DESCRIPTION = 'Description here!!'
+        desc = ABOUT_DESCRIPTION
 
         application = await self.bot.application_info()
-        version_info = utils.getGitInfo(self.bot.git_hash)
+        (_, version_info, fork) = utils.getGitInfo(self.bot.git_hash)
 
-        embed = discord.Embed(title=TITLE, description=f'[Issue Tracker]({ISSUE_TRACKER})\n\n{DESCRIPTION}',
-        timestamp = self.bot.start_time)
+        if not fork:
+            desc = f'[Issue Tracker]({ABOUT_ISSUE_TRACKER})\n\n' + desc
+
+        embed = discord.Embed(title=ABOUT_TITLE, url=ABOUT_URL, description=desc, timestamp = self.bot.start_time)
         embed.set_author(name=f'About {self.bot.user}', icon_url=self.bot.user.avatar_url)
         embed.set_footer(text='Up since')
         embed.add_field(name='Instance Owner', value=application.owner if application.owner else '*Unavailable*')
