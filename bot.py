@@ -20,7 +20,7 @@ class Core(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         bot.db = db
-        (bot.git_hash, _) = utils.getGitInfo()
+        bot.git_hash = utils.getGitInfo()
         bot.start_time = datetime.datetime.utcnow()
 
     @commands.Cog.listener()

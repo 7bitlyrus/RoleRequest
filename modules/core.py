@@ -168,27 +168,20 @@ class RoleRequest(commands.Cog):
 
     @commands.command(name='about')
     async def _about(self, ctx):
-        GIT_REPO = 'https://github.com/7bitlyrus/rolerequest'
-        GIT_COMMIT_BASE = 'https://github.com/7bitlyrus/rolerequest/commit/'
+        """Print information about this bot instance"""
         ISSUE_TRACKER = 'https://github.com/7bitlyrus/rolerequest/issues'
         TITLE = 'RoleRequest by 7bitlyrus'
-        DESCRIPTION = 'Description here!!' 
+        DESCRIPTION = 'Description here!!'
 
         application = await self.bot.application_info()
-        (commit, git_flags) = utils.getGitInfo(self.bot.git_hash, GIT_REPO)
-
-        if commit:
-            commit_str = f'`{commit[:7]}`' if 'Fork' in git_flags else f'[`{commit[:7]}`]({GIT_COMMIT_BASE}{commit})'
-            version_info = f'Commit {commit_str}' + f' ({", ".join(git_flags)})' if git_flags else ''
-        else:
-            version_info = '*Unavailable*'
+        version_info = utils.getGitInfo(self.bot.git_hash)
 
         embed = discord.Embed(title=TITLE, description=f'[Issue Tracker]({ISSUE_TRACKER})\n\n{DESCRIPTION}',
         timestamp = self.bot.start_time)
         embed.set_author(name=f'About {self.bot.user}', icon_url=self.bot.user.avatar_url)
         embed.set_footer(text='Up since')
-        embed.add_field(name='Instance Owner', value=application.owner)
-        embed.add_field(name='Version Info', value=version_info)
+        embed.add_field(name='Instance Owner', value=application.owner if application.owner else '*Unavailable*')
+        embed.add_field(name='Version Info', value=version_info if version_info else '*Unavailable*')
 
         return await ctx.send(embed=embed)
 

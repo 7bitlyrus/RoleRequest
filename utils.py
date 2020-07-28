@@ -18,38 +18,33 @@ async def cmdSuccess(ctx, text, *, delete_after = None):
 async def cmdFail(ctx, text, *, delete_after = None):
     return await ctx.send(f'{config.redTick} {text}', delete_after = delete_after)
 
-def getGitInfo(commit = None, git_repo_url = None):
+def getGitInfo(ref_commit = None):
+    GIT_REPO_URL = 'https://github.com/7bitlyrus/rolerequest'
+    GIT_COMMIT_BASE = GIT_REPO_URL + '/commit/'
+    GIT_COMPARE_BASE = GIT_REPO_URL + '/compare/'
     GIT_REPO_REGEX = r'(?:https?://)?(?:\w+@)?([^:/\s]+)[:|/]([^/\s]+)/([^/.\s]+)(?:.git)?'
-    flags = []
 
     try:
         commit_hash = subprocess.check_output(['git','rev-parse','HEAD']).decode('ascii').strip()
-
-        if commit is None: # We are initing commit info on bot startup, we don't need anything but commit hash
-            return (commit_hash, [])
-
         origin_url = subprocess.check_output(['git','config','--get','remote.origin.url']).decode('ascii').strip()
         modified = subprocess.call(['git','diff-index','--quiet','HEAD']) != 0
     except Exception as e:
         logging.warn(e)
-        return (False, [])
+        return False
 
-    if commit != commit_hash: # If on new commit since bot startup (specified)
-        flags.append('Pending')
+    if ref_commit is None: # We are initing commit info on bot startup, we only want the commit hash
+        return commit_hash
 
-    if modified: # Files modified since commit
-        flags.append('Changed')
+    fork = re.match(GIT_REPO_REGEX, GIT_REPO_URL).groups() != re.match(GIT_REPO_REGEX, origin_url).groups()
+    multiple = ref_commit != commit_hash
 
-    if git_repo_url:
-        base_url_groups = re.match(GIT_REPO_REGEX, git_repo_url).groups()
-        origin_url_groups = re.match(GIT_REPO_REGEX, origin_url).groups()
+    commit_short = (f'{ref_commit[:7]}..' if multiple else '') + commit_hash[:7] + ('*' if modified else '')
+    commit_url = f'{GIT_COMPARE_BASE}{ref_commit}^...{commit_hash}' if multiple else f'{GIT_COMMIT_BASE}{commit_hash}'
+    s = 's' if multiple else ''
 
-        if base_url_groups != origin_url_groups: # If git repo doesn't match expected one
-            flags.append('Fork')
-    else: # Assume fork if we are not given a repo 
-        flags.append('Fork')
+    version = f'Commit{s} `{commit_short}` (Fork)' if fork else f'Commit{s} [`{commit_short}`]({commit_url})'
 
-    return (commit_hash, flags)
+    return version
 
 def guild_in_db():
     async def predicate(ctx):
