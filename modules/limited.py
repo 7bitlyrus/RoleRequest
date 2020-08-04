@@ -85,7 +85,7 @@ class LimitedRequests(commands.Cog):
         if doc['requests_opts']['ratelimit']:
             rl_score = 0
             for r in users_requests:
-                 rl_score += LIMITED_RATELIMIT_SCORES[r["status"]] if r["status"] in LIMITED_RATELIMIT_SCORES else 0
+                 rl_score += 0 if not r["status"] in LIMITED_RATELIMIT_SCORES else LIMITED_RATELIMIT_SCORES[r["status"]]
 
             if rl_score > LIMITED_RATELIMIT_SCORE_MAX:
                 return await utils.cmdFail(ctx, 'You have too many recent requests. Please try again later.', 
