@@ -50,7 +50,8 @@ def guild_in_db():
                 'id': ctx.guild.id, 
                 'requests_opts': {
                     'channel': None,
-                    'hidejoins': False
+                    'hidejoins': False,
+                    'ratelimit': True
                 }, 
                 'requests': {},
                 'roles': {}

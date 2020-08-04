@@ -7,6 +7,12 @@ GIT_REPO_URL = 'https://github.com/7bitlyrus/rolerequest'
 GIT_COMMIT_BASE = GIT_REPO_URL + '/commit/'
 GIT_COMPARE_BASE = GIT_REPO_URL + '/compare/'
 
+LIMITED_RATELIMIT_SCORE_MAX = 21
+LIMITED_RATELIMIT_SCORES = {
+    'pending': 3,
+    'cancelled': 5,
+    'denied': 7,
+}
 
 EMBED_LENGTH_LIMITS = {
     'overall': 6000,

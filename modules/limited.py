@@ -1,4 +1,5 @@
 import datetime
+import functools
 import logging
 import typing
 
@@ -7,6 +8,7 @@ from discord import channel
 from discord.ext import commands, tasks
 
 import config
+from consts import *
 import utils
 
 class LimitedRequests(commands.Cog):
@@ -76,21 +78,19 @@ class LimitedRequests(commands.Cog):
             return await utils.cmdFail(ctx, f'Limited role requests are currently disabled for this guild.', 
                 delete_after = delete)
 
-        existing_requests = list(filter(lambda e: e['role'] == role.id, users_requests))
-
-        if existing_requests and existing_requests[-1]['status'] == 'pending':
+        existing_request = list(filter(lambda e: e['role'] == role.id, users_requests))
+        if existing_request and existing_request[-1]['status'] == 'pending':
             return await utils.cmdFail(ctx, f'You already have a request pending for the role "{role.name}".', 
                 delete_after = delete)
 
-        # Ratelimit if ratelimit score > 21; score calculated from status of requests in last 24h
-        rl_score = 0
-        for e in users_requests: # TODO move these to consts
-            if(e['status'] == 'denied'): rl_score += 7
-            if(e['status'] == 'cancelled'): rl_score += 5
-            if(e['status'] == 'pending'): rl_score += 3
-        if rl_score > 21:
-            return await utils.cmdFail(ctx, 'You have too many recent requests. Please try again later.', 
-               delete_after = delete)
+        if doc['requests_opts']['ratelimit']:
+            # Ratelimit if ratelimit score above maximum; score calculated from status of requests in last 24h
+            ratelimit_score = functools.reduce(
+                lambda r: LIMITED_RATELIMIT_SCORES[r["status"]] if r["status"] in LIMITED_RATELIMIT_SCORES else 0,
+            users_requests, 100)
+            if ratelimit_score > LIMITED_RATELIMIT_SCORE_MAX:
+                return await utils.cmdFail(ctx, 'You have too many recent requests. Please try again later.', 
+                delete_after = delete)
 
         embed = discord.Embed(
             title='Limited Role Request',
@@ -206,8 +206,9 @@ class LimitedRequests(commands.Cog):
 
         channel = doc['requests_opts']['channel']
         hidejoins = doc['requests_opts']['hidejoins']
+        ratelimit = doc['requests_opts']['hidejoins']
 
-        embed = discord.Embed(title=f'Limited Role Request Options for {ctx.guild}')
+        embed = discord.Embed(title=f'Limited Role Request Options for: {ctx.guild}')
         embed.set_footer(text=f'Use the "{ctx.prefix}help limited" command for help on changing these settings.') 
 
         if channel == None:
@@ -215,7 +216,8 @@ class LimitedRequests(commands.Cog):
             return await ctx.send(embed=embed)
 
         embed.add_field(name='Posting Channel', value=f'<#{channel}>')
-        embed.add_field(name='Join Commands', value='Hidden' if hidejoins else 'Visible')
+        embed.add_field(name='Join Command Hiding', value='Enabled' if hidejoins else 'Disabled')
+        embed.add_field(name='Join Command Ratelimiting', value='Enabled' if ratelimit else 'Disabled')
         
         return await ctx.send(embed=embed)
 
@@ -228,7 +230,7 @@ class LimitedRequests(commands.Cog):
         if doc['requests_opts']['channel'] == None:
             return await utils.cmdFail(ctx, f'Requests are already disabled for this guild.')
 
-        utils.guildKeySet(ctx.bot, ctx.guild, f'requests_opts.channel', None)
+        utils.guildKeySet(ctx.bot, ctx.guild, 'requests_opts.channel', None)
         return await utils.cmdSuccess(ctx, f'Requests are now disabled for this guild.')
 
     @_limited.command(name='channel')
@@ -240,26 +242,36 @@ class LimitedRequests(commands.Cog):
         if doc['requests_opts']['channel'] == channel.id:
             return await utils.cmdFail(ctx, f'The requests channel is already {channel}.')
             
-        utils.guildKeySet(ctx.bot, ctx.guild, f'requests_opts.channel', channel.id)
+        utils.guildKeySet(ctx.bot, ctx.guild, 'requests_opts.channel', channel.id)
         return await utils.cmdSuccess(ctx, f'The requests channel is now {channel}.')
 
     @_limited.command(name='hidejoins', aliases=['hidejoin'])
     @utils.guild_in_db()
     async def _limited_hidejoins(self, ctx, setting: typing.Optional[bool]):
         '''Sets automatic deletion of join commands for limited roles'''
-        doc = utils.getGuildDoc(ctx.bot, ctx.guild)
-        current = doc['requests_opts']['hidejoins']
+        return await self._limited_option_toggle(ctx, setting, 'hidejoins', 'hiding')
 
-        if setting is None:
+    @_limited.command(name='ratelimit', aliases=['ratelimiting', 'ratelimited'])
+    @utils.guild_in_db()
+    async def _limited_ratelimited(self, ctx, setting: typing.Optional[bool]):
+        '''Sets ratelimiting of join commands for limited roles'''
+        return await self._limited_option_toggle(ctx, setting, 'ratelimit', 'ratelimiting')
+
+    # Generic togglable option prototype for hidejoins and ratelimit
+    async def _limited_option_toggle(self, ctx, user_setting, setting_key, setting_string):
+        doc = utils.getGuildDoc(ctx.bot, ctx.guild)
+        current = doc['requests_opts'][setting_key]
+
+        if user_setting is None:
             current = not current
 
-        current_human = 'Hidden' if current else 'Visible'
+        current_h = 'enabled' if current else 'disabled'
 
-        if setting == current:
-            return await utils.cmdFail(ctx, f'Limited role commands are already **{current_human}**.')
+        if user_setting == current:
+            return await utils.cmdFail(ctx, f'Limited role join command {setting_string} is already **{current_h}**.')
 
-        utils.guildKeySet(ctx.bot, ctx.guild, f'requests_opts.hidejoins', setting)
-        return await utils.cmdSuccess(ctx, f'Limited role commands are now **{current_human}**.')
+        utils.guildKeySet(ctx.bot, ctx.guild, f'requests_opts.{setting_key}', user_setting)
+        return await utils.cmdSuccess(ctx, f'Limited role join command {setting_string} is now **{current_h}**.')
             
 def setup(bot):
     bot.add_cog(LimitedRequests(bot))
