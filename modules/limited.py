@@ -3,6 +3,7 @@ import logging
 import typing
 
 import discord
+from discord import channel
 from discord.ext import commands, tasks
 
 import config
@@ -92,7 +93,7 @@ class LimitedRequests(commands.Cog):
                delete_after = delete)
 
         embed = discord.Embed(
-            title="Limited Role Request",
+            title='Limited Role Request',
             description=f'<@{ctx.message.author.id}> requested the <@&{role.id}> role.',
             color = discord.Colour.blurple(),
             timestamp = datetime.datetime.utcnow() + datetime.timedelta(hours=24))
@@ -190,21 +191,35 @@ class LimitedRequests(commands.Cog):
                     pass
         return
             
-    @commands.group(name='requests', invoke_without_command=True, case_insensitive=True, aliases=['request'])
+    @commands.group(name='limited', invoke_without_command=True, case_insensitive=True)
+    @commands.has_guild_permissions(manage_guild=True)
     @commands.guild_only()
-    async def _requests(self, ctx):
+    @utils.guild_in_db()
+    async def _limited(self, ctx):
         '''
         Manages settings for limited role requests
-        
-        To make or cancel your own role request, use the 'join' or 'leave' commands.
         '''
-        return await ctx.send_help('request')
+        doc = utils.getGuildDoc(ctx.bot, ctx.guild)
 
-    @_requests.command(name='disable')
-    @commands.has_guild_permissions(manage_guild=True)
+        channel = doc['requests_opts']['channel']
+        hidejoins = doc['requests_opts']['hidejoins']
+
+        embed = discord.Embed(title=f'Limited Role Request Options for {ctx.guild}')
+        embed.set_footer(text=f'Use the "{ctx.prefix}help limited" command for help on changing these settings.') 
+
+        if channel == None:
+            embed.description = 'Requests are currently disabled for this guild.'
+            return await ctx.send(embed=embed)
+
+        embed.add_field(name='Posting Channel', value=f'<#{channel}>')
+        embed.add_field(name='Join Commands', value='Hidden' if hidejoins else 'Visible')
+        
+        return await ctx.send(embed=embed)
+
+    @_limited.command(name='disable')
     @utils.guild_in_db()
-    async def _requests_disable(self, ctx):
-        '''Disables requests for the guild'''
+    async def _limited_disable(self, ctx):
+        '''Disables limited role requests for the guild'''
         doc = utils.getGuildDoc(ctx.bot, ctx.guild)
 
         if doc['requests_opts']['channel'] == None:
@@ -213,45 +228,35 @@ class LimitedRequests(commands.Cog):
         utils.guildKeySet(ctx.bot, ctx.guild, f'requests_opts.channel', None)
         return await utils.cmdSuccess(ctx, f'Requests are now disabled for this guild.')
 
-    @_requests.command(name='channel')
-    @commands.has_guild_permissions(manage_guild=True)
+    @_limited.command(name='channel')
     @utils.guild_in_db()
-    async def _requests_channel(self, ctx, channel: typing.Optional[discord.TextChannel]):
-        '''Gets/sets the channel that requests will be posted in'''
+    async def _limited_channel(self, ctx, channel: discord.TextChannel):
+        '''Sets the channel that limited role requests will be posted in'''
         doc = utils.getGuildDoc(ctx.bot, ctx.guild)
-        current = doc['requests_opts']['channel']
-        msg_prefix = 'The requests channel is'
         
-        if not channel:
-            if not current:
-                return await ctx.send(f'Requests are currently disabled for this guild.')
-            return await ctx.send(f'{msg_prefix} currently <#{doc["requests_opts"]["channel"]}>')
-            
-        if channel.id == current:
-            return await utils.cmdFail(ctx, f'{msg_prefix} already {channel}.')
+        if doc['requests_opts']['channel'] == channel.id:
+            return await utils.cmdFail(ctx, f'The requests channel is already {channel}.')
             
         utils.guildKeySet(ctx.bot, ctx.guild, f'requests_opts.channel', channel.id)
-        return await utils.cmdSuccess(ctx, f'{msg_prefix} now {channel}.')
+        return await utils.cmdSuccess(ctx, f'The requests channel is now {channel}.')
 
-    @_requests.command(name='hidejoins', aliases=['hidejoin'])
-    @commands.has_guild_permissions(manage_guild=True)
+    @_limited.command(name='hidejoins', aliases=['hidejoin'])
     @utils.guild_in_db()
-    async def _requests_hidejoins(self, ctx, setting: typing.Optional[bool]):
-        '''Shows/sets automatic deletion of join commands for limited roles'''
+    async def _limited_hidejoins(self, ctx, setting: typing.Optional[bool]):
+        '''Sets automatic deletion of join commands for limited roles'''
         doc = utils.getGuildDoc(ctx.bot, ctx.guild)
         current = doc['requests_opts']['hidejoins']
-        msg_prefix = 'Automatic deletion of join commands for limited roles is'
-
-        setting_str = lambda setting: "enabled" if setting else "disabled"
 
         if setting is None:
-            return await ctx.send(f'{msg_prefix} currently **{setting_str(current)}**.')
+            current = not current
+
+        current_human = 'hidden' if current else 'visible'
 
         if setting == current:
-            return await utils.cmdFail(ctx, f'{msg_prefix} already **{setting_str(current)}**.')
+            return await utils.cmdFail(ctx, f'Limited role commands are already **{current_human}**.')
 
         utils.guildKeySet(ctx.bot, ctx.guild, f'requests_opts.hidejoins', setting)
-        return await utils.cmdSuccess(ctx, f'{msg_prefix} now **{setting_str(setting)}**.')
+        return await utils.cmdSuccess(ctx, f'Limited role commands are now **{current_human}**.')
             
 def setup(bot):
     bot.add_cog(LimitedRequests(bot))
