@@ -9,7 +9,7 @@ import datetime
 import utils
 
 LOG_FORMAT = '[%(asctime)s] [%(levelname)s]: %(message)s'
-logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
+logging.basicConfig(format = LOG_FORMAT, level = logging.INFO)
 
 bot = commands.Bot(command_prefix=commands.when_mentioned_or("::"), case_insensitive=True)
     # allowed_mentions=discord.AllowedMentions(everyone=False, users=False, roles=False)) TODO add in discord.py 1.4 

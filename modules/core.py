@@ -35,6 +35,7 @@ class RoleRequest(commands.Cog):
         '''Lists all roles in the server'''
         await self._list_send_embed(ctx, 'All Roles', ctx.guild.roles)
 
+    # Code common between the 'list' command and its subcommands
     async def _list_send_embed(self, ctx, title, roles, *, footer=None):
         doc = utils.getGuildDoc(ctx.bot, ctx.guild)
         roles = list(filter(lambda r: not r.is_default(), reversed(roles))) # Reversed without @everyone role
@@ -119,7 +120,8 @@ class RoleRequest(commands.Cog):
         if option and not resolved_option:
             return await utils.cmdFail(ctx, f'"{option}" is not a valid option.') 
 
-        if role.is_default() or role.managed: # @everyone role or managed
+        # @everyone role or managed
+        if role.is_default() or role.managed:
             return await utils.cmdFail(ctx, f'"{role.name}" is not a valid role.')
 
         role_request_type = None if not (doc and str(role.id) in doc['roles']) else doc['roles'][str(role.id)]['type']
@@ -127,7 +129,7 @@ class RoleRequest(commands.Cog):
         # Role info
         if resolved_option is None:
             embed = discord.Embed(
-                title="Role Info",
+                title='Role Info',
                 description=f'<@&{role.id}> (`{role.id}`)\n' + 
                 f'**Color:** {"None" if role.color == discord.Colour.default() else role.color}\n' + 
                 f'**Hoisted:** {"Yes" if role.hoist else "No"}\n' +
@@ -142,7 +144,7 @@ class RoleRequest(commands.Cog):
             return await ctx.send(embed=embed)
 
         # Remove role
-        if resolved_option == "remove":
+        if resolved_option == 'remove':
             if not role_request_type:
                 return await utils.cmdFail(ctx, f'"{role.name}" is not a requestable role.') 
 
@@ -162,7 +164,8 @@ class RoleRequest(commands.Cog):
 
         # Add role
         else:
-            if resolved_option == 'add': resolved_option = 'open'
+            if resolved_option == 'add':
+                resolved_option = 'open'
 
             utils.guildKeySet(ctx.bot, ctx.guild, f'roles.{role.id}', { 'type': resolved_option })
             return await utils.cmdSuccess(ctx, f'{role.name}" has been added as a requestable {resolved_option} role.')
@@ -178,7 +181,7 @@ class RoleRequest(commands.Cog):
         if not fork:
             desc = f'[Issue Tracker]({ABOUT_ISSUE_TRACKER})\n\n' + desc
 
-        embed = discord.Embed(title=ABOUT_TITLE, url=ABOUT_URL, description=desc, timestamp = self.bot.start_time)
+        embed = discord.Embed(title=ABOUT_TITLE, url=ABOUT_URL, description=desc, timestamp=self.bot.start_time)
         embed.set_author(name=f'About {self.bot.user}', icon_url=self.bot.user.avatar_url)
         embed.set_footer(text='Up since')
         embed.add_field(name='Instance Owner', value=application.owner if application.owner else '*Unavailable*')

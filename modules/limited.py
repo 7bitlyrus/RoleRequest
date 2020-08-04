@@ -56,7 +56,7 @@ class LimitedRequests(commands.Cog):
         
         return
 
-    # Create and cancel request methods, called from join/leave commands in core.py
+    # Called from join command in core.py
     async def request_create(self, ctx, role):
         doc = utils.getGuildDoc(ctx.bot, ctx.guild)
 
@@ -84,7 +84,7 @@ class LimitedRequests(commands.Cog):
 
         # Ratelimit if ratelimit score > 21; score calculated from status of requests in last 24h
         rl_score = 0
-        for e in users_requests:
+        for e in users_requests: # TODO move these to consts
             if(e['status'] == 'denied'): rl_score += 7
             if(e['status'] == 'cancelled'): rl_score += 5
             if(e['status'] == 'pending'): rl_score += 3
@@ -95,8 +95,8 @@ class LimitedRequests(commands.Cog):
         embed = discord.Embed(
             title='Limited Role Request',
             description=f'<@{ctx.message.author.id}> requested the <@&{role.id}> role.',
-            color = discord.Colour.blurple(),
-            timestamp = datetime.datetime.utcnow() + datetime.timedelta(hours=24))
+            color=discord.Colour.blurple(),
+            timestamp=datetime.datetime.utcnow() + datetime.timedelta(hours=24))
         embed.set_author(name=f'{ctx.message.author} ({ctx.message.author.id})', icon_url=ctx.message.author.avatar_url)
         embed.add_field(name='Status', value='Pending. React to approve or deny the request.')
         embed.set_footer(text='Request expires')
@@ -115,11 +115,13 @@ class LimitedRequests(commands.Cog):
 
         return await utils.cmdSuccess(ctx, f'Your request for "{role.name}" has been submitted.', delete_after = delete)
 
+    # Called from leave command in core.py
     async def request_cancel(self, ctx, role):
         doc = utils.getGuildDoc(ctx.bot, ctx.guild)
 
         requests = list(filter(
-            lambda e: e[1]['user'] == ctx.author.id and e[1]['role'] == role.id, doc['requests'].items()))
+            lambda e: e[1]['user'] == ctx.author.id and e[1]['role'] == role.id, doc['requests'].items()
+        ))
         request = requests[-1] if requests else (None, None)
 
         if not request[1] or request[1]['status'] != 'pending':
@@ -159,7 +161,8 @@ class LimitedRequests(commands.Cog):
         role = guild.get_role(request['role'])
         layout = statuses[status]
 
-        if status == 'approved': await member.add_roles(role, reason='User role request approved')
+        if status == 'approved':
+            await member.add_roles(role, reason='User role request approved')
 
         if status == 'expired':
             utils.guildKeyDel(self.bot, guild, f'requests.{message_id}') 
@@ -250,7 +253,7 @@ class LimitedRequests(commands.Cog):
         if setting is None:
             current = not current
 
-        current_human = 'hidden' if current else 'visible'
+        current_human = 'Hidden' if current else 'Visible'
 
         if setting == current:
             return await utils.cmdFail(ctx, f'Limited role commands are already **{current_human}**.')

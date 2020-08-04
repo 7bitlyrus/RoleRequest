@@ -13,13 +13,13 @@ from consts import *
 
 Servers = Query()
 
-async def cmdSuccess(ctx, text, *, delete_after = None):
-    return await ctx.send(f'{config.greenTick} {text}', delete_after = delete_after)
+async def cmdSuccess(ctx, text, *, delete_after=None):
+    return await ctx.send(f'{config.greenTick} {text}', delete_after=delete_after)
 
-async def cmdFail(ctx, text, *, delete_after = None):
-    return await ctx.send(f'{config.redTick} {text}', delete_after = delete_after)
+async def cmdFail(ctx, text, *, delete_after=None):
+    return await ctx.send(f'{config.redTick} {text}', delete_after=delete_after)
 
-def getGitInfo(*, initialize = False, ref_commit = None):
+def getGitInfo(*, initialize=False, ref_commit=None):
     try:
         commit_hash = subprocess.check_output(['git','rev-parse','HEAD']).decode('ascii').strip()
         origin_url = subprocess.check_output(['git','config','--get','remote.origin.url']).decode('ascii').strip()
@@ -28,7 +28,8 @@ def getGitInfo(*, initialize = False, ref_commit = None):
         logging.warn(e)
         return False
 
-    if initialize: # We are initing commit info on bot startup, we only want the commit hash.
+    # If we are initializing commit info on bot startup, we only want the commit hash.
+    if initialize:
         return commit_hash
 
     fork = re.match(GIT_REPO_REGEX, GIT_REPO_URL).groups() != re.match(GIT_REPO_REGEX, origin_url).groups()
@@ -80,11 +81,7 @@ def guildKeyDel(bot, guild, key):
     return bot.db.update(predicate(key), Servers.id == guild.id)
 
 async def sendListEmbed(ctx, title, lst, *, raw_override=None, footer=None):
-    # Overall - 128 - footer - title, description, field values
-    footer_len = 0 if not footer else len(footer)
-    overall_limit = EMBED_LENGTH_LIMITS['overall'] - len(title) - footer_len
-    
-
+    overall_limit = EMBED_LENGTH_LIMITS['overall'] - len(title) - (0 if not footer else len(footer))
     lengths = list(map(lambda x: len(x), lst))
 
     lenOverall = 0
@@ -101,9 +98,9 @@ async def sendListEmbed(ctx, title, lst, *, raw_override=None, footer=None):
 
     lenOverall += len(description)
 
-    # If description is full, start with fields
+    # If description is full, start with fields; 24 Fields, reserve last one for maximum length link
     fields = []
-    for f in range(24): # 24 Fields, reserve last one for maximum length link
+    for f in range(24):
         if lastItem + 1 == len(lst): break
         if lenOverall + lengths[lastItem+1] + 1 > overall_limit: break
 

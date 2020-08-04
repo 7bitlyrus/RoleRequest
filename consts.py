@@ -8,7 +8,10 @@ GIT_COMMIT_BASE = GIT_REPO_URL + '/commit/'
 GIT_COMPARE_BASE = GIT_REPO_URL + '/compare/'
 
 
-
-EMBED_LENGTH_LIMITS = {'overall': 6000, 'description': 2048, 'field_values': 1024}
+EMBED_LENGTH_LIMITS = {
+    'overall': 6000,
+    'description': 2048,
+    'field_values': 1024
+}
 
 GIT_REPO_REGEX = r'(?:https?://)?(?:\w+@)?([^:/\s]+)[:|/]([^/\s]+)/([^/.\s]+)(?:.git)?'
