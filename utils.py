@@ -19,7 +19,7 @@ async def cmdSuccess(ctx, text, *, delete_after = None):
 async def cmdFail(ctx, text, *, delete_after = None):
     return await ctx.send(f'{config.redTick} {text}', delete_after = delete_after)
 
-def getGitInfo(ref_commit = None):
+def getGitInfo(*, initialize = False, ref_commit = None):
     try:
         commit_hash = subprocess.check_output(['git','rev-parse','HEAD']).decode('ascii').strip()
         origin_url = subprocess.check_output(['git','config','--get','remote.origin.url']).decode('ascii').strip()
@@ -28,8 +28,8 @@ def getGitInfo(ref_commit = None):
         logging.warn(e)
         return False
 
-    if ref_commit is None: # We are initing commit info on bot startup, we only want the commit hash.
-        return (commit_hash, '', None)
+    if initialize: # We are initing commit info on bot startup, we only want the commit hash.
+        return commit_hash
 
     fork = re.match(GIT_REPO_REGEX, GIT_REPO_URL).groups() != re.match(GIT_REPO_REGEX, origin_url).groups()
     multiple = ref_commit != commit_hash
@@ -40,7 +40,7 @@ def getGitInfo(ref_commit = None):
 
     version = f'Commit{s} `{commit_short}` (Fork)' if fork else f'Commit{s} [`{commit_short}`]({commit_url})'
 
-    return (commit_hash, version, fork)
+    return (version, fork)
 
 def guild_in_db():
     async def predicate(ctx):

@@ -173,7 +173,7 @@ class RoleRequest(commands.Cog):
         desc = ABOUT_DESCRIPTION
 
         application = await self.bot.application_info()
-        (_, version_info, fork) = utils.getGitInfo(self.bot.git_hash)
+        (version_info, fork) = utils.getGitInfo(ref_commit=self.bot.git_hash)
 
         if not fork:
             desc = f'[Issue Tracker]({ABOUT_ISSUE_TRACKER})\n\n' + desc
