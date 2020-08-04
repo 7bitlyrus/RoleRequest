@@ -70,7 +70,7 @@ class RoleRequest(commands.Cog):
             return await utils.cmdFail(ctx, f'You already have the role "{role.name}".') 
 
         if doc['roles'][str(role.id)]['type'] == 'limited':
-            return await self.bot.get_cog('RequestManager').request_create(ctx, role)
+            return await self.bot.get_cog('LimitedRequests').request_create(ctx, role)
 
         await ctx.author.add_roles(role, reason='User joined role via command')
         return await utils.cmdSuccess(ctx, f'You have joined the role "{role.name}".')
@@ -87,7 +87,7 @@ class RoleRequest(commands.Cog):
 
         if not role in ctx.author.roles:
             if doc['roles'][str(role.id)]['type'] == 'limited':
-                return await self.bot.get_cog('RequestManager').request_cancel(ctx, role)
+                return await self.bot.get_cog('LimitedRequests').request_cancel(ctx, role)
             
             return await utils.cmdFail(ctx, f'You do not have the role "{role.name}".') 
 
