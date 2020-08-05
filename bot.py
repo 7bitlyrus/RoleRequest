@@ -11,7 +11,12 @@ import utils
 LOG_FORMAT = '[%(asctime)s] [%(levelname)s]: %(message)s'
 logging.basicConfig(format = LOG_FORMAT, level = logging.INFO)
 
-bot = commands.Bot(command_prefix=commands.when_mentioned_or("::"), case_insensitive=True)
+if config.prefix:
+    prefix = commands.when_mentioned_or(config.prefix)
+else:
+    prefix = commands.when_mentioned
+
+bot = commands.Bot(command_prefix=prefix, case_insensitive=True)
     # allowed_mentions=discord.AllowedMentions(everyone=False, users=False, roles=False)) TODO add in discord.py 1.4 
 
 db = TinyDB('db.json')
@@ -40,4 +45,3 @@ bot.load_extension('jishaku')
 bot.load_extension('modules.core')
 bot.load_extension('modules.limited')
 bot.run(config.token)
-# TODO: Add reaction roles module

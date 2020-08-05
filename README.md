@@ -9,6 +9,9 @@ A simple role self-management bot for Discord.
 # Your Discord bot token
 token = '' 
 
+# Desired bot token or None
+prefix = ''
+
 # Emotes to use for approving/denying limited role requests
 greenTick = 'greenTick:1234567890'
 redTick = 'redTick:1234567890'
