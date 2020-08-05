@@ -168,7 +168,7 @@ class RoleRequest(commands.Cog):
                 resolved_option = 'open'
 
             utils.guildKeySet(ctx.bot, ctx.guild, f'roles.{role.id}', { 'type': resolved_option })
-            return await utils.cmdSuccess(ctx, f'{role.name}" has been added as a requestable {resolved_option} role.')
+            return await utils.cmdSuccess(ctx, f'"{role.name}" has been added as a requestable {resolved_option} role.')
 
     @commands.command(name='about')
     async def _about(self, ctx):
