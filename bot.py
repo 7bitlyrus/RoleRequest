@@ -16,8 +16,8 @@ if config.prefix:
 else:
     prefix = commands.when_mentioned
 
-bot = commands.Bot(command_prefix=prefix, case_insensitive=True)
-    # allowed_mentions=discord.AllowedMentions(everyone=False, users=False, roles=False)) TODO add in discord.py 1.4 
+bot = commands.Bot(command_prefix=prefix, case_insensitive=True, 
+    allowed_mentions=discord.AllowedMentions(everyone=False, users=False, roles=False)) 
 
 db = TinyDB('db.json')
 
