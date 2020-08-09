@@ -2,7 +2,7 @@ import logging
 
 import discord
 from discord.ext import commands
-from tinydb import TinyDB, Query
+from tinydb import TinyDB
 
 import config
 import datetime
@@ -20,7 +20,6 @@ bot = commands.Bot(command_prefix=prefix, case_insensitive=True,
     allowed_mentions=discord.AllowedMentions(everyone=False, users=False, roles=False)) 
 
 db = TinyDB('db.json')
-Servers = Query()
 
 class Core(commands.Cog):
     def __init__(self, bot):

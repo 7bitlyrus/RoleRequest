@@ -4,7 +4,6 @@ import typing
 
 import discord
 from discord.ext import commands, tasks
-from discord.ext.commands.errors import ExpectedClosingQuoteError
 
 import config
 from consts import *
