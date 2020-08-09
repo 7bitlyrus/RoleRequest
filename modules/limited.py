@@ -4,6 +4,7 @@ import typing
 
 import discord
 from discord.ext import commands, tasks
+from discord.ext.commands.errors import ExpectedClosingQuoteError
 
 import config
 from consts import *
@@ -29,7 +30,12 @@ class LimitedRequests(commands.Cog):
             for message_id, request in server['requests'].items():
                 if request['created'] > expire_before: continue
                 
-                guild = await self.bot.fetch_guild(server['id'])
+                try:
+                    guild = await self.bot.fetch_guild(server['id'])
+                except:
+                    logging.info(f'[Limited] Unable to fetch guild for request {message_id}')
+                    continue
+
                 await self.request_update(guild, message_id, request, 'expired')
                 logging.info(f'[Limited] Expired request {message_id}')
 
