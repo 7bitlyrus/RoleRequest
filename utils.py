@@ -81,6 +81,10 @@ def guildKeyDel(bot, guild, key):
 
     return bot.db.update(predicate(key), Servers.id == guild.id)
 
+def removeGuild(bot, guild_id):
+    logging.info(f'[Bot] Removed guild from db: {guild_id}')
+    return bot.db.remove(Servers.id == guild_id)
+
 async def sendListEmbed(ctx, title, lst, *, raw_override=None, footer=None):
     overall_limit = EMBED_LENGTH_LIMITS['overall'] - len(title) - (0 if not footer else len(footer))
     lengths = list(map(lambda x: len(x), lst))

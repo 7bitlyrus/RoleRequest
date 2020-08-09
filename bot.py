@@ -2,7 +2,7 @@ import logging
 
 import discord
 from discord.ext import commands
-from tinydb import TinyDB
+from tinydb import TinyDB, Query
 
 import config
 import datetime
@@ -20,6 +20,7 @@ bot = commands.Bot(command_prefix=prefix, case_insensitive=True,
     allowed_mentions=discord.AllowedMentions(everyone=False, users=False, roles=False)) 
 
 db = TinyDB('db.json')
+Servers = Query()
 
 class Core(commands.Cog):
     def __init__(self, bot):
@@ -31,6 +32,14 @@ class Core(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         logging.info('[Bot] Ready')
+
+        for guild in bot.db:
+            if not bot.get_guild(guild['id']):
+                utils.removeGuild(bot, guild['id'])
+
+    @commands.Cog.listener()
+    async def on_guild_remove(guild):
+        utils.removeGuild(bot, guild.id)
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
