@@ -161,7 +161,7 @@ class LimitedRequests(commands.Cog):
             }
         }
 
-        member = guild.get_member(request['user'])
+        member = await guild.fetch_member(request['user'])
         role = guild.get_role(request['role'])
         layout = statuses[status]
 
